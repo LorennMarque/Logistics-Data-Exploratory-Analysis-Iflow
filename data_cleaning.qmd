@@ -8,7 +8,7 @@ toc-location: left
 number-sections: true
 ---
 
-```{r echo=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 # echo false y message false ocultan este bloque
 
 # Limpieza de datos
@@ -28,6 +28,10 @@ library(plotly)
 ```{r, warning=FALSE, echo=FALSE, message=FALSE}
 # Tambien ocultamos la carga de datos
 raw_data <- read_csv("data.csv")
+
+# Configuracion de claves de API
+# Clave de Mapbox (reemplaza con tu clave personal de Mapbox)
+mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
 ```
 
 # Limpieza de datos
@@ -402,15 +406,21 @@ Descripcion aca
 
 ## Resumen general
 
+::: panel-tabset
+## Intro
+
 ```{r}
 plot_intro(raw_data)
 ```
+
+## Categorial
 
 ```{r}
 raw_data %>%
   inspect_cat() %>%    # library(inspectdf)
   show_plot()
 ```
+:::
 
 ## Distribución de variables numéricas
 
@@ -445,7 +455,12 @@ plot_ly(z = correlacion,
 
 ## Distribución de variables categóricas
 
-```{r}
+### Intentamos identificar algun patron en las entregas segun el día de la semana
+
+::: panel-tabset
+## Distribución
+
+```{r echo=FALSE}
 # Visualizar la distribución de la variable categórica 'dia_str' con plotly
 distribucion_categorica <- raw_data %>%
   count(dia_str)
@@ -456,10 +471,72 @@ plot_ly(distribucion_categorica,
         type = 'bar', 
         marker = list(color = 'rgba(55, 128, 191, 0.6)', 
                       line = list(color = 'rgba(55, 128, 191, 1.0)', width = 2))) %>%
-  layout(title = "Distribución de Visitas por Día de la Semana",
+  layout(title = "Distribución de Entregas por Día de la Semana",
          xaxis = list(title = "Día de la Semana"),
          yaxis = list(title = "Cantidad de Visitas"))
 ```
+
+## Georreferenciado
+
+```{r echo=FALSE, warning=FALSE, cache=TRUE}
+# Crear un factor ordenado para los días de la semana
+raw_data$dia_str <- factor(raw_data$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"))
+
+# Crear una lista de días únicos (ahora ya estarán ordenados según el factor)
+dias_unicos <- unique(raw_data$dia_str)
+
+# Crear una lista de "frames" para cada día
+frames <- lapply(dias_unicos, function(dia) {
+  list(
+    name = dia,
+    data = list(
+      list(
+        type = "scattermapbox",
+        lat = raw_data$latitud[raw_data$dia_str == dia],
+        lon = raw_data$longitud[raw_data$dia_str == dia],
+        mode = "markers",
+        marker = list(size = 7, opacity = 0.5),
+        text = paste("Cliente:", raw_data$cliente[raw_data$dia_str == dia], "<br>Dirección:", raw_data$direccion[raw_data$dia_str == dia]),
+        color = raw_data$cliente[raw_data$dia_str == dia]
+      )
+    )
+  )
+})
+
+# Graficar las entregas por cliente con un slider para cambiar día a día
+plot_ly(
+  raw_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~dia_str,  # Agregar el día como frame para la animación (ahora en orden)
+  marker = list(size = 7, opacity = 0.6),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 5, t = 25, b = 5, l = 5)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Día: ")
+  )
+
+```
+:::
 
 ```{r}
 # Visualización de la distribución de visitas por cliente
@@ -559,9 +636,6 @@ plot_ly(demora_por_cliente,
 ```
 
 ```{r}
-# Clave de Mapbox (reemplaza con tu clave personal de Mapbox)
-mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
-
 # Graficar las entregas por cliente con colores distintos
 plot_ly(
   raw_data,
@@ -655,60 +729,6 @@ plot_ly(entregas_por_cliente,
 ```
 
 ## Análisis Geoespacial
-
-```{r}
-# Crear una lista de días 
-dias_unicos <- unique(raw_data$dia_str)
-
-# Crear una lista de "frames" para cada día
-frames <- lapply(dias_unicos, function(dia) {
-  list(
-    name = dia,
-    data = list(
-      list(
-        type = "scattermapbox",
-        lat = raw_data$latitud[raw_data$dia_str == dia],
-        lon = raw_data$longitud[raw_data$dia_str == dia],
-        mode = "markers",
-        marker = list(size = 7, opacity = 0.5),
-        text = paste("Cliente:", raw_data$cliente[raw_data$dia_str == dia], "<br>Dirección:", raw_data$direccion[raw_data$dia_str == dia]),
-        color = raw_data$cliente[raw_data$dia_str == dia]
-      )
-    )
-  )
-})
-
-# Graficar las entregas por cliente con un slider para cambiar día a día
-plot_ly(
-  raw_data,
-  lat = ~latitud,
-  lon = ~longitud,
-  type = 'scattermapbox',
-  mode = 'markers',
-  color = ~cliente,  # Asigna un color distinto por cliente
-  frame = ~dia_str,  # Agregar el día como frame para la animación
-  marker = list(size = 7, opacity = 0.3),  # Ajusta el tamaño y la transparencia de los marcadores
-  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
-) %>%
-  layout(
-    mapbox = list(
-      accesstoken = mapbox_token,
-      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
-      zoom = 10,  # Nivel de zoom
-      style = "open-street-map"  # Estilo del mapa
-    ),
-    title = "Mapa de Entregas en Buenos Aires por Cliente",
-    margin = list(r = 0, t = 0, b = 0, l = 0)
-  ) %>%
-  animation_opts(
-    frame = 500,  # Duración de cada frame en milisegundos
-    transition = 0,  # Sin transiciones entre frames
-    redraw = TRUE
-  ) %>%
-  animation_slider(
-    currentvalue = list(prefix = "Día: ")
-  )
-```
 
 ```{r}
 # Crear una lista de fechas únicas extraídas de la columna fin_visita
