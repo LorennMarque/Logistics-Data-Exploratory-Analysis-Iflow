@@ -1,0 +1,981 @@
+---
+title: "Limpieza de datos"
+author: "Equipo de Análisis"
+date: "25 de octubre de 2024"
+format: html
+toc: true
+toc-location: left
+number-sections: true
+---
+
+```{r echo=FALSE, message=FALSE}
+# echo false y message false ocultan este bloque
+
+# Limpieza de datos
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(lubridate)
+
+# Analisis exploratorio
+library(DataExplorer)
+library(inspectdf)
+library(plotly)
+```
+
+![](banner.png)
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+# Tambien ocultamos la carga de datos
+raw_data <- read_csv("data.csv")
+```
+
+# Limpieza de datos
+
+### Identificamos columnas innecesarias.
+
+Uno de los primeros problemas que notamos es que la columna **InicioVisitaPlanificado** y **FinVisitaPlanificado** contienen los mismos valores.
+
+```{r}
+# Podemos validarlo contando la cantidad de valores duplicados
+sum(raw_data$InicioVisitaPlanificado == raw_data$FinVisitaPlanificado)
+```
+
+```{r}
+# Comparamos la cantidad de duplicados (27484) con la cantidad de filas (27484).
+dim(raw_data)
+```
+
+Luego de verificar podemos unificar estas columnas en una nueva columna más intuitiva. "visita_planificada"
+
+```{r}
+raw_data <- raw_data %>%
+  # Nueva columna para almacenar el horario planificado
+  mutate(visita_planificada = InicioVisitaPlanificado) %>%
+  # Eliminamos InicioVisitaPlanificado y FinVisitaPlanificado
+  select(-InicioVisitaPlanificado, -FinVisitaPlanificado)
+```
+
+### Formato correcto de variables.
+
+Nos aseguramos que todas las columnas tengan el formato correcto.
+
+```{r}
+# Nombre de las columnas actuales
+colnames(raw_data)
+```
+
+```{r}
+# Clases de cada columna
+sapply(raw_data, class)
+```
+
+Tenemos que pasar a fecha las columnas: **InicioVisitaReal, FinVisitaReal.** Tambien nos aseguramos de que VisitaPlanificado tenga el mismo formato.
+
+```{r}
+# Convertir cada columna a formato de fecha y hora
+raw_data$InicioVisitaReal <- as.POSIXct(raw_data$InicioVisitaReal, format="%Y-%m-%d %H:%M:%OS")
+
+raw_data$FinVisitaReal <- as.POSIXct(raw_data$FinVisitaReal, format="%Y-%m-%d %H:%M:%OS")
+
+raw_data$visita_planificada <- as.POSIXct(raw_data$visita_planificada, format="%Y-%m-%d %H:%M:%OS")
+```
+
+Las columnas **InicioHorario1, FinHorario1,** las pasamos a caracter para categorizarlas más facil.
+
+```{r}
+# Convertir las columnas a carácter
+raw_data$InicioHorario1 <- as.character(raw_data$InicioHorario1)
+
+raw_data$FinHorario1 <- as.character(raw_data$FinHorario1)
+```
+
+## Pasamos variables categóricas a factores.
+
+```{r}
+raw_data$cliente <- as.factor(raw_data$cliente)
+```
+
+## Renombramos las columnas
+
+Para facilitar el uso del dataset renombramos las columnas con nombres más simples y descriptivos.
+
+```{r}
+colnames(raw_data)
+```
+
+```{r}
+# Renombrar columnas específicas con dplyr
+raw_data <- raw_data %>%
+  rename(      id_orden = iddomicilioorden,
+         inicio_horario = InicioHorario1,
+            fin_horario = FinHorario1,
+                 bultos = Bultos,
+                   peso = Peso,
+               unidades = Unidades,
+          inicio_visita = InicioVisitaReal,
+             fin_visita = FinVisitaReal)
+```
+
+```{r}
+colnames(raw_data)
+```
+
+## Reorganizar columnas.
+
+```{r}
+raw_data <- raw_data %>%
+  select(id_orden, cliente, localidad, direccion, latitud, longitud,
+         bultos, unidades, peso, inicio_horario, fin_horario, visita_planificada, inicio_visita, fin_visita)
+```
+
+## Limpieza de datos nulos
+
+Antes de crear nuevas variables vamos a asegurarnos de que los datos con los que vamos a trabajar sean correctos.
+
+```{r}
+# Obtener un resumen completo del dataframe
+skim(raw_data)
+```
+
+```{r}
+# Contar la cantidad de valores NA por columna
+colSums(is.na(raw_data))
+```
+
+```{r}
+# Verificar si hay filas duplicadas
+sum(duplicated(raw_data))
+```
+
+```{r}
+# Mostrar las filas duplicadas
+raw_data[duplicated(raw_data), ] %>% arrange(desc(id_orden))
+```
+
+```{r}
+# Verificamos una observación duplicada
+raw_data %>% filter(fin_visita == "2024-07-05 08:58:36")
+```
+
+Mientras explorabamos las filas duplicadas encontramos que existe una gran cantidad de datos con el mismo horario y feecha de fin de visita. Y en estos casos coincide tambien con el horario de inicio.
+
+```{r}
+raw_data %>% filter(fin_visita == "2024-07-03 16:55:00")
+```
+
+```{r}
+summary(raw_data)
+```
+
+### Problemas encontrados.
+
+> El icono "**🟩"** indica solucionado.
+
+Encontramos
+
+-   41 valores nulos en **latitud** y **longitud 🟩**
+
+-   52 valores nulos en **inicio_visita** y **fin_visita**
+
+-   46 observaciones duplicadas. **🟩**
+
+-   Valores de "0" en latitud y longitud. **🟩**
+
+-   Peso mínimo igual a 0
+
+#### Eliminamos filas duplicadas
+
+```{r}
+raw_data <- raw_data %>%
+  distinct()
+
+dim(raw_data)
+```
+
+#### Valores nulos o "0" en coordenadas
+
+Para los valores nulos encontrados en cordenadas validamos si ya se encuentra algun domicilio con los datos cargados.
+
+```{r}
+# Filtrar las filas donde latitud o longitud son NA
+cordenadas_vacias <- raw_data %>%
+  filter(
+    is.na(latitud) | is.na(longitud) | latitud == 0 | longitud == 0
+    )
+
+cordenadas_vacias # dim 43 x 14
+```
+
+```{r}
+distinct(cordenadas_vacias)
+```
+
+Revisamos para cada entrega con valores faltantes si existe alguna orden con los datos cargados correctamente.
+
+```{r}
+# Filtrar las observaciones donde id_orden está en cordenadas_vacias
+observaciones_id_orden <- raw_data %>%
+  filter(id_orden %in% cordenadas_vacias$id_orden) %>%
+  group_by(id_orden) %>%
+  summarise(count = n())
+
+# Mostrar el resultado
+observaciones_id_orden
+
+# Contar las apariciones de cada id_orden en cordenadas_vacias
+apariciones_cordenadas_vacias <- cordenadas_vacias %>%
+  group_by(id_orden) %>%
+  summarise(na_count = n())
+
+# Unir las tablas por id_orden
+resultado <- observaciones_id_orden %>%
+  left_join(apariciones_cordenadas_vacias, by = "id_orden") %>%
+  # Si no hay coincidencias en cordenadas_vacias, establecer na_count en 0
+  mutate(na_count = ifelse(is.na(na_count), 0, na_count)) %>%
+  # Restar las apariciones de cordenadas_vacias del total
+  mutate(count_diff = count - na_count) %>%
+
+# Filtrar solo los id_orden donde count_diff es mayor a 0
+  filter(count_diff > 0)
+
+# Mostrar el resultado
+resultado
+```
+
+Podemos reemplazar la latitud y longitud en 21 de las 42 filas. Podemos recuperar un 50% de los datos con latitud y longitud faltante. Para esto creamos una función
+
+```{r}
+# Verificamos una observación
+raw_data %>% filter(id_orden == 177934)
+```
+
+```{r}
+# Cantidad previa de NA (40)
+summary(raw_data$longitud) 
+```
+
+```{r}
+# Definir la función que revisa y sobrescribe latitud y longitud
+reparar_lat_long <- function(dataset, ids) {
+  # Iterar sobre cada id de la lista
+  for (id in ids) {
+    # Filtrar las observaciones válidas de latitud y longitud para este id_orden
+    observaciones_validas <- dataset %>%
+      filter(id_orden == id & !is.na(latitud) & !is.na(longitud) & latitud != 0 & longitud != 0)
+    
+    # Si existen observaciones válidas, tomar la primera ocurrencia
+    if (nrow(observaciones_validas) > 0) {
+      latitud_valida <- observaciones_validas$latitud[1]
+      longitud_valida <- observaciones_validas$longitud[1]
+      
+      # Sobrescribir las observaciones con latitud o longitud nulos o 0
+      dataset <- dataset %>%
+        mutate(
+          latitud = ifelse(id_orden == id & (is.na(latitud) | latitud == 0), latitud_valida, latitud),
+          longitud = ifelse(id_orden == id & (is.na(longitud) | longitud == 0), longitud_valida, longitud)
+        )
+    }
+  }
+  
+  # Retornar el dataset reparado
+  return(dataset)
+}
+
+# Ejecutar la función usando los id_orden de la columna resultado
+ids_a_reparar <- resultado$id_orden
+
+# Aplicar la función a raw_data
+raw_data <- reparar_lat_long(raw_data, ids_a_reparar)
+
+# Verificar los cambios
+head(raw_data)
+```
+
+```{r}
+# Comprobamos que funciona.
+raw_data %>% filter(id_orden == 177934)
+```
+
+Con todos estos cambios comprobamos la cantidad de datos vacios en latitud / longitud.
+
+```{r}
+# Nueva cantidad de NA (19), 21 solucionados.
+summary(raw_data$longitud) 
+```
+
+Quedaron 19 sin resolver, eliminamos estas filas.
+
+```{r}
+# Eliminar las filas donde latitud o longitud es NA
+raw_data <- raw_data %>%
+  filter(!is.na(latitud) & !is.na(longitud))
+
+dim(raw_data)
+```
+
+#### Valores nulos en inicio visita y fin visita
+
+```{r}
+raw_data %>% filter(is.na(inicio_visita) | is.na(fin_visita) )
+```
+
+```{r}
+# Cantidad de valores con horarios iguales
+dim(raw_data %>% filter(inicio_visita == fin_visita))
+```
+
+Como un gran porcentaje de los datos tiene el mismo inicio_visita y fin_visita almacenamos en variables distintas para intentar identificar un motivo.
+
+```{r}
+# Guardamos en una variable los valores con horarios duplicados
+datos_visita_duplicados <- raw_data %>%
+  filter(inicio_visita == fin_visita)
+
+# Tambien una variable sin los duplicados
+datos_visita_sin_duplicado <- raw_data %>%
+  filter(inicio_visita != fin_visita)
+```
+
+```{r}
+# Ver los valores únicos y la cantidad de cada uno
+raw_data %>%
+  count(fin_horario)
+```
+
+### Creación de nuevas variables.
+
+Creamos nuevas columnas útiles para futuros analisis.
+
+```{r}
+colnames(raw_data)
+```
+
+```{r}
+raw_data <- raw_data %>%
+  mutate(
+    dia = as.integer(format(fin_visita, "%d")),   # Extraer el día
+    mes = as.integer(format(fin_visita, "%m")),   # Extraer el mes
+    hora = as.integer(format(fin_visita, "%H")), 
+    
+    diferencia_minutos = as.numeric(
+      difftime(fin_visita, visita_planificada, units = "mins")),
+    dia_str = weekdays(fin_visita, abbreviate = FALSE),
+    
+    duracion_visita_min = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "mins")),
+    
+         duracion_visita_horas = as.numeric(
+           difftime(fin_visita, inicio_visita, units = "hours"))
+    
+  )
+```
+
+### Resultados de la limpieza
+
+::: panel-tabset
+## Faltantes por columna
+
+```{r}
+# Tabla de valores faltantes por columna
+inspect_na(raw_data) %>%
+  show_plot()
+```
+
+## Valores faltantes
+
+```{r}
+# Visualizar los valores faltantes
+plot_missing(raw_data)
+```
+
+## General
+
+```{r}
+skim(raw_data)
+```
+:::
+
+# Análisis Exploratorio de Datos
+
+Descripcion aca
+
+## Resumen general
+
+```{r}
+plot_intro(raw_data)
+```
+
+```{r}
+raw_data %>%
+  inspect_cat() %>%    # library(inspectdf)
+  show_plot()
+```
+
+## Distribución de variables numéricas
+
+Para entender la distribución de las variables numéricas como `diferencia_minutos`, `duracion_visita_min`, `duracion_visita_horas`, puedes visualizar los histogramas:
+
+```{r}
+# Visualización de la distribución de variables numéricas
+plot_histogram(raw_data)
+```
+
+## Análisis de correlación entre variables numéricas
+
+```{r}
+# Seleccionar solo las variables numéricas
+numericas <- raw_data %>%
+  select_if(is.numeric)
+
+# Calcular la matriz de correlación
+correlacion <- cor(numericas, use = "complete.obs")
+
+# Visualizar la matriz de correlación con plotly
+plot_ly(z = correlacion, 
+        x = colnames(correlacion), 
+        y = rownames(correlacion), 
+        type = "heatmap", 
+        colorscale = "Viridis") %>%
+  layout(title = "Matriz de Correlación entre Variables Numéricas",
+         xaxis = list(title = ""),
+         yaxis = list(title = ""))
+
+```
+
+## Distribución de variables categóricas
+
+```{r}
+# Visualizar la distribución de la variable categórica 'dia_str' con plotly
+distribucion_categorica <- raw_data %>%
+  count(dia_str)
+
+plot_ly(distribucion_categorica, 
+        x = ~dia_str, 
+        y = ~n, 
+        type = 'bar', 
+        marker = list(color = 'rgba(55, 128, 191, 0.6)', 
+                      line = list(color = 'rgba(55, 128, 191, 1.0)', width = 2))) %>%
+  layout(title = "Distribución de Visitas por Día de la Semana",
+         xaxis = list(title = "Día de la Semana"),
+         yaxis = list(title = "Cantidad de Visitas"))
+```
+
+```{r}
+# Visualización de la distribución de visitas por cliente
+distribucion_cliente <- raw_data %>%
+  count(cliente)
+
+plot_ly(distribucion_cliente, 
+        x = ~cliente, 
+        y = ~n, 
+        type = 'bar', 
+        marker = list(color = 'rgba(26, 118, 255, 0.6)', 
+                      line = list(color = 'rgba(26, 118, 255, 1.0)', width = 2))) %>%
+  layout(title = "Distribución de Visitas por Cliente",
+         xaxis = list(title = "Cliente"),
+         yaxis = list(title = "Cantidad de Visitas"),
+         showlegend = FALSE)
+
+```
+
+## Relación entre variables numéricas y categóricas
+
+```{r}
+# Relación entre 'dia_str' (día de la semana) y 'duracion_visita_min'
+ggplot(raw_data, aes(x = dia_str, y = duracion_visita_min)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Duración de la visita por día de la semana", x = "Día", y = "Duración de la visita (minutos)")
+
+```
+
+## Visualización de variables temporales
+
+```{r}
+# Contar visitas por día de la semana
+raw_data %>%
+  count(dia_str) %>%
+  ggplot(aes(x = dia_str, y = n)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Cantidad de visitas por día de la semana", x = "Día", y = "Número de visitas") +
+  theme_minimal()
+
+```
+
+## Otros gráficos
+
+```{r}
+raw_data$visita_planificada <- as.Date(raw_data$visita_planificada)
+
+# Contar la cantidad de entregas por cliente y fecha
+entregas_por_cliente <- raw_data %>%
+  group_by(visita_planificada, cliente) %>%
+  summarise(cantidad_entregas = n()) %>%
+  ungroup()
+
+# Graficar con plotly
+plot_ly(entregas_por_cliente, 
+        x = ~visita_planificada, 
+        y = ~cantidad_entregas, 
+        color = ~cliente, 
+        type = 'scatter', 
+        mode = 'lines+markers') %>%
+  layout(title = "Cantidad de Entregas por Fecha para Cada Cliente",
+         xaxis = list(title = "Fecha de Visita Planificada"),
+         yaxis = list(title = "Cantidad de Entregas"),
+         legend = list(title = list(text = "Cliente")))
+
+```
+
+Notamos que la caida del 7 de julio representa una entrega un día domingo. Día donde tipicamente no se realizan entregas. Tambien es una entrega con mucha demora.
+
+```{r}
+# Asegúrate de que la columna que contiene la fecha esté en formato de fecha
+raw_data$visita_planificada <- as.Date(raw_data$visita_planificada)
+
+# Calcular el tiempo de demora en horas
+raw_data <- raw_data %>%
+  mutate(demora_horas = as.numeric(difftime(fin_visita, visita_planificada, units = "min")))
+
+# Calcular el tiempo de demora promedio por cliente y fecha
+demora_por_cliente <- raw_data %>%
+  group_by(visita_planificada, cliente) %>%
+  summarise(demora_promedio = mean(demora_horas, na.rm = TRUE)) %>%
+  ungroup()
+
+# Graficar con plotly
+plot_ly(demora_por_cliente, 
+        x = ~visita_planificada, 
+        y = ~demora_promedio, 
+        color = ~cliente, 
+        type = 'scatter', 
+        mode = 'lines+markers') %>%
+  layout(title = "Tiempo de Demora Promedio (en horas) por Fecha y Cliente",
+         xaxis = list(title = "Fecha de Visita Planificada"),
+         yaxis = list(title = "Demora Promedio (horas)"),
+         legend = list(title = list(text = "Cliente")))
+
+```
+
+```{r}
+# Clave de Mapbox (reemplaza con tu clave personal de Mapbox)
+mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
+
+# Graficar las entregas por cliente con colores distintos
+plot_ly(
+  raw_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  marker = list(size = 7, opacity = 0.3),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  )
+```
+
+```{r}
+# Calcular el tiempo de demora en horas
+copy_data <- raw_data %>%
+  mutate(demora_horas = as.numeric(difftime(fin_visita, visita_planificada, units = "hours")))
+
+# Calcular la cantidad de entregas por día por cliente
+entregas_por_cliente <- copy_data %>%
+  group_by(visita_planificada, cliente) %>%
+  summarise(cantidad_entregas = n(),
+            demora_promedio = mean(demora_horas, na.rm = TRUE)) %>%
+  ungroup()
+
+# Graficar usando plotly con dos ejes Y
+plot_ly() %>%
+  # Línea de cantidad de entregas por día por cliente
+  add_lines(data = entregas_por_cliente, 
+            x = ~visita_planificada, 
+            y = ~cantidad_entregas, 
+            color = ~cliente, 
+            name = "Cantidad de Entregas",
+            yaxis = "y1") %>%
+  
+  # Línea de tiempo promedio de demora por día por cliente
+  add_lines(data = entregas_por_cliente, 
+            x = ~visita_planificada, 
+            y = ~demora_promedio, 
+            color = ~cliente, 
+            name = "Demora Promedio (Horas)",
+            line = list(dash = 'dash'),  # Línea punteada para diferenciarlas
+            yaxis = "y2") %>%
+  
+  # Configuración de los ejes
+  layout(
+    title = "Entregas por Día y Tiempo Promedio de Demora por Cliente",
+    xaxis = list(title = "Fecha"),
+    yaxis = list(title = "Cantidad de Entregas", side = "left", showgrid = FALSE),
+    yaxis2 = list(title = "Demora Promedio (Horas)", side = "right", overlaying = "y", showgrid = FALSE),
+    legend = list(x = 0.1, y = 0.9)
+  )
+```
+
+```{r}
+# Entregas por semana
+# Convertir la columna de fecha a formato Date (si no lo está)
+raw_data$fin_visita <- as.Date(raw_data$visita_planificada)
+
+# Crear una columna que agrupe por semana (añadiendo el lunes como inicio de semana)
+raw_data$semana_visita <- cut(raw_data$visita_planificada, breaks = "week", start.on.monday = TRUE)
+
+# Contar la cantidad de entregas por cliente y semana
+entregas_por_cliente <- raw_data %>%
+  group_by(semana_visita, cliente) %>%
+  summarise(cantidad_entregas = n()) %>%
+  ungroup()
+
+# Graficar con plotly
+plot_ly(entregas_por_cliente, 
+        x = ~semana_visita, 
+        y = ~cantidad_entregas, 
+        color = ~cliente, 
+        type = 'scatter', 
+        mode = 'lines+markers') %>%
+  layout(title = "Cantidad de Entregas Semanales por Cliente",
+         xaxis = list(title = "Semana de Visita Planificada"),
+         yaxis = list(title = "Cantidad de Entregas"),
+         legend = list(title = list(text = "Cliente")))
+
+```
+
+## Análisis Geoespacial
+
+```{r}
+# Crear una lista de días 
+dias_unicos <- unique(raw_data$dia_str)
+
+# Crear una lista de "frames" para cada día
+frames <- lapply(dias_unicos, function(dia) {
+  list(
+    name = dia,
+    data = list(
+      list(
+        type = "scattermapbox",
+        lat = raw_data$latitud[raw_data$dia_str == dia],
+        lon = raw_data$longitud[raw_data$dia_str == dia],
+        mode = "markers",
+        marker = list(size = 7, opacity = 0.5),
+        text = paste("Cliente:", raw_data$cliente[raw_data$dia_str == dia], "<br>Dirección:", raw_data$direccion[raw_data$dia_str == dia]),
+        color = raw_data$cliente[raw_data$dia_str == dia]
+      )
+    )
+  )
+})
+
+# Graficar las entregas por cliente con un slider para cambiar día a día
+plot_ly(
+  raw_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~dia_str,  # Agregar el día como frame para la animación
+  marker = list(size = 7, opacity = 0.3),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Día: ")
+  )
+```
+
+```{r}
+# Crear una lista de fechas únicas extraídas de la columna fin_visita
+fechas_unicas <- unique(as.Date(raw_data$fin_visita))
+
+# Graficar las entregas por cliente con un slider para cambiar por fecha
+plot_ly(
+  raw_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~as.Date(fin_visita),  # Agregar la fecha como frame para la animación
+  marker = list(size = 7, opacity = 0.7),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Fecha: ")
+  )
+```
+
+```{r}
+# Mapa de calor de entregas
+heatmap_data <- raw_data %>%
+  group_by(latitud, longitud) %>%
+  summarise(total_entregas = n())
+
+# Graficar un mapa de calor para visualizar las zonas con mayor densidad de entregas
+heatmap_plot <- plot_ly(
+  heatmap_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  z = ~total_entregas,
+  type = 'densitymapbox',
+  colorscale = 'Viridis',
+  radius = 10
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),
+      zoom = 10,
+      style = "open-street-map"
+    ),
+    title = "Mapa de Calor de Entregas en Buenos Aires",
+    margin = list(r = 0, t = 30, b = 0, l = 0)
+  )
+
+# Mostrar el mapa de calor
+heatmap_plot
+```
+
+```{r}
+# Mejorar el mapa original con clustering de puntos
+clustered_plot <- plot_ly(
+  raw_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~as.factor(cliente),
+  marker = list(size = 7, opacity = 0.6),
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),
+      zoom = 10,
+      style = "open-street-map"
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente (con Clustering)",
+    margin = list(r = 0, t = 30, b = 0, l = 0)
+  )
+
+# Mostrar el mapa mejorado con clustering
+clustered_plot
+```
+
+```{r}
+# 1. Gráfico de barras: Distribución de entregas por día de la semana
+dia_entregas <- raw_data %>%
+  group_by(dia_str) %>%
+  summarise(total_entregas = n())
+
+dia_entregas_plot <- ggplot(dia_entregas, aes(x = reorder(dia_str, total_entregas), y = total_entregas, fill = dia_str)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribución de Entregas por Día de la Semana", x = "Día de la Semana", y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Mostrar el gráfico de barras
+dia_entregas_plot
+```
+
+```{r}
+# 2. Gráfico de líneas: Entregas a lo largo del tiempo por mes
+entregas_por_mes <- raw_data %>%
+  group_by(mes) %>%
+  summarise(total_entregas = n())
+
+entregas_mes_plot <- ggplot(entregas_por_mes, aes(x = mes, y = total_entregas, group = 1)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Entregas a lo Largo del Tiempo por Mes", x = "Mes", y = "Número de Entregas") +
+  theme_minimal()
+
+# Mostrar el gráfico de líneas
+entregas_mes_plot
+```
+
+```{r}
+# 3. Gráfico de cajas: Duración de visitas por cliente
+duracion_visitas_plot <- ggplot(raw_data, aes(x = as.factor(cliente), y = duracion_visita_min, fill = as.factor(cliente))) +
+  geom_boxplot() +
+  labs(title = "Duración de Visitas por Cliente", x = "Cliente", y = "Duración de la Visita (minutos)") +
+  theme_minimal()
+
+# Mostrar el gráfico de cajas
+duracion_visitas_plot
+```
+
+```{r}
+# 4. Gráfico de barras: Entregas por hora del día
+entregas_por_hora <- raw_data %>%
+  group_by(hora) %>%
+  summarise(total_entregas = n())
+
+entregas_hora_plot <- ggplot(entregas_por_hora, aes(x = hora, y = total_entregas, fill = as.factor(hora))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Entregas por Hora del Día", x = "Hora del Día", y = "Número de Entregas") +
+  theme_minimal()
+
+# Mostrar el gráfico de barras de entregas por hora
+dia_entregas_plot
+```
+
+```{r}
+# 5. Análisis de tiempos de inactividad
+# Calcular el tiempo de inactividad entre entregas por cliente
+raw_data <- raw_data %>%
+  arrange(cliente, inicio_visita) %>%
+  group_by(cliente) %>%
+  mutate(tiempo_inactividad = as.numeric(difftime(inicio_visita, lag(fin_visita), units = "mins")))
+
+# Limitar los valores extremos para mejorar la visualización
+tiempo_inactividad_limited <- raw_data %>%
+  filter(tiempo_inactividad < 1500 & tiempo_inactividad >= 0)
+
+# Gráfico violin: Tiempos de inactividad por cliente
+tiempo_inactividad_violin_plot <- ggplot(tiempo_inactividad_limited, aes(x = as.factor(cliente), y = tiempo_inactividad, fill = as.factor(cliente))) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.2, alpha = 0.4) +
+  labs(title = "Tiempos de Inactividad por Cliente (Mejorado)", x = "Cliente", y = "Tiempo de Inactividad (minutos)") +
+  theme_minimal()
+
+# Mostrar el gráfico de violín de tiempos de inactividad
+tiempo_inactividad_violin_plot
+```
+
+### Analisis especifico por cliente
+
+```{r}
+# 6. Análisis para el Cliente 20
+cliente_20_data <- raw_data %>% filter(cliente == 20)
+
+# Gráfico de barras: Entregas por día de la semana para Cliente 20
+cliente_20_dia_entregas <- cliente_20_data %>%
+  group_by(dia_str) %>%
+  summarise(total_entregas = n())
+
+cliente_20_dia_entregas_plot <- ggplot(cliente_20_dia_entregas, aes(x = reorder(dia_str, total_entregas), y = total_entregas, fill = dia_str)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribución de Entregas por Día de la Semana para Cliente 20", x = "Día de la Semana", y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Mostrar el gráfico de barras para Cliente 20
+cliente_20_dia_entregas_plot
+```
+
+```{r}
+# 7. Análisis para el Cliente 70
+cliente_70_data <- raw_data %>% filter(cliente == 70)
+
+# Gráfico de barras: Entregas por día de la semana para Cliente 70
+cliente_70_dia_entregas <- cliente_70_data %>%
+  group_by(dia_str) %>%
+  summarise(total_entregas = n())
+
+cliente_70_dia_entregas_plot <- ggplot(cliente_70_dia_entregas, aes(x = reorder(dia_str, total_entregas), y = total_entregas, fill = dia_str)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribución de Entregas por Día de la Semana para Cliente 70", x = "Día de la Semana", y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Mostrar el gráfico de barras para Cliente 70
+cliente_70_dia_entregas_plot 
+```
+
+```{r}
+# Gráfico de líneas: Entregas por hora del día para Cliente 20 y Cliente 70
+cliente_20_hora_entregas <- cliente_20_data %>%
+  group_by(hora) %>%
+  summarise(total_entregas = n())
+
+cliente_70_hora_entregas <- cliente_70_data %>%
+  group_by(hora) %>%
+  summarise(total_entregas = n())
+
+cliente_20_hora_entregas_plot <- ggplot(cliente_20_hora_entregas, aes(x = hora, y = total_entregas, fill = as.factor(hora))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Entregas por Hora del Día para Cliente 20", x = "Hora del Día", y = "Número de Entregas") +
+  theme_minimal()
+
+cliente_70_hora_entregas_plot <- ggplot(cliente_70_hora_entregas, aes(x = hora, y = total_entregas, fill = as.factor(hora))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Entregas por Hora del Día para Cliente 70", x = "Hora del Día", y = "Número de Entregas") +
+  theme_minimal()
+
+# Mostrar gráficos de barras por hora del día para Cliente 20 y Cliente 70
+cliente_20_hora_entregas_plot
+cliente_70_hora_entregas_plot
+```
+
+```{r}
+# Gráfico de líneas combinado: Entregas por hora del día para Cliente 20 y Cliente 70
+cliente_20_hora_entregas <- cliente_20_data %>%
+  group_by(hora) %>%
+  summarise(total_entregas = n()) %>%
+  mutate(cliente = "Cliente 20")
+
+cliente_70_hora_entregas <- cliente_70_data %>%
+  group_by(hora) %>%
+  summarise(total_entregas = n()) %>%
+  mutate(cliente = "Cliente 70")
+
+# Unir los datos de ambos clientes para el gráfico combinado
+total_entregas_por_hora <- bind_rows(cliente_20_hora_entregas, cliente_70_hora_entregas)
+
+# Crear el gráfico combinado
+entregas_hora_combined_plot <- ggplot(total_entregas_por_hora, aes(x = hora, y = total_entregas, fill = cliente)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Entregas por Hora del Día para Clientes 20 y 70", x = "Hora del Día", y = "Número de Entregas", fill = "Cliente") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Mostrar gráfico combinado
+entregas_hora_combined_plot
+```
+
+```{r}
+
+```
