@@ -1,0 +1,55 @@
+---
+title: "report"
+format: html
+editor: visual
+---
+
+# Introducción
+
+Good features for the Introduction include:
+• Summary of the study and data, as well as any relevant substantive context, background, or
+framing issues.
+• The “big questions” answered by your data analyses, and summaries of your conclusions about
+these questions.
+• Brief outline of remainder of paper.
+The above is a pretty good order to present this material in as well.
+
+# Análisis
+
+In this format there is a single Body section, usually called “Analysis”,
+and then there is a subsection for each question raised in the introduction, usually taken in the
+same order as in the introduction (general to specific, decreasing order of importance, etc.).
+Within each subsection, statistical method, analyses, and conclusion would be described (for
+each question). F
+
+2.1 Success rate
+
+methods
+
+analysisi
+
+conclusiond
+
+# Conclusiones
+
+The conclusion should reprise the questions and conclusions of the introduction, perhaps augmented by some additional observations or details gleaned from the analysis
+section. New questions, future work, etc., can also be raised here
+
+# Apendice
+
+One or more appendices are the place to out details and ancillary materials.
+These might include such items as
+• Technical descriptions of (unusual) statistical procedures
+• Detailed tables or computer output
+• Figures that were not central to the arguments presented in the body of the report
+• Computer code used to obtain results.
+In all cases, and especially in the case of computer code, it is a good idea to add some text sentences
+as comments or annotations, to make it easier for the uninitiated reader to follow what you are doing.
+It is often difficult to find the right balance between what to put in the appendix and what to put in
+the body of the paper. Generally you should put just enough in the body to make the point, and refer
+the reader to specific sections or page numbers in the appendix for additional graphs, tables and other
+details.
+
+``` R
+# Codigo R para mostrar, no correr
+```

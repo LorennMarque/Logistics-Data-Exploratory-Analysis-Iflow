@@ -1,3 +1,5 @@
+![](banner.png){width="770" height="215"}
+
 ---
 title: "Limpieza de datos"
 author: "Equipo de Análisis"
@@ -21,11 +23,10 @@ library(lubridate)
 library(DataExplorer)
 library(inspectdf)
 library(plotly)
+library(viridis)
 ```
 
-![](banner.png)
-
-```{r, warning=FALSE, echo=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 # Tambien ocultamos la carga de datos
 raw_data <- read_csv("data.csv")
 
@@ -356,23 +357,29 @@ colnames(raw_data)
 ```
 
 ```{r}
+# Asegurar que los días se generen en español
+Sys.setlocale("LC_TIME", "es_ES.UTF-8")  # Para Unix/macOS
+# En Windows: Sys.setlocale("LC_TIME", "Spanish_Spain.1252")
+
+# Crear la columna 'dia_str' con normalización de caracteres
 raw_data <- raw_data %>%
   mutate(
-    dia = as.integer(format(fin_visita, "%d")),   # Extraer el día
-    mes = as.integer(format(fin_visita, "%m")),   # Extraer el mes
-    hora = as.integer(format(fin_visita, "%H")), 
-    
+    dia = as.integer(format(fin_visita, "%d")),
+    mes = as.integer(format(fin_visita, "%m")),
+    hora = as.integer(format(fin_visita, "%H")),
     diferencia_minutos = as.numeric(
       difftime(fin_visita, visita_planificada, units = "mins")),
-    dia_str = weekdays(fin_visita, abbreviate = FALSE),
-    
+    dia_str = tolower(iconv(weekdays(fin_visita, abbreviate = FALSE), 
+                            to = "UTF-8")),
     duracion_visita_min = as.numeric(
       difftime(fin_visita, inicio_visita, units = "mins")),
-    
-         duracion_visita_horas = as.numeric(
-           difftime(fin_visita, inicio_visita, units = "hours"))
-    
+    duracion_visita_horas = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "hours"))
   )
+```
+
+```{r}
+write.csv(x = raw_data, file = "iflow_clean.csv")
 ```
 
 ### Resultados de la limpieza
@@ -997,5 +1004,34 @@ entregas_hora_combined_plot
 ```
 
 ```{r}
+# colnames(raw_data)
+library(viridis)
+# raw_data$hora
+
+
+# Asumimos que tu DataFrame ya está cargado y se llama 'datos'
+# Agrupar los datos por día y hora para contar ocurrencias
+
+# Agrupar los datos por día y hora para contar ocurrencias
+resumen <- raw_data %>%
+  group_by(dia_str, hora) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+# Asegurar el orden correcto de los días (Lunes a Domingo)
+resumen$dia_str <- factor(resumen$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", 
+                                      "jueves", "viernes", "sábado", "domingo"))
+
+
+ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis(option = "C", direction = 1) +
+  labs(title = "Número de usos por día y hora", 
+       x = "Hora del día", 
+       y = "Día de la semana", 
+       fill = "Cantidad") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```

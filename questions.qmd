@@ -1,0 +1,13 @@
+---
+title: "questions"
+format: html
+editor: visual
+---
+
+```{r}
+data <- read.csv("iflow_clean.csv")
+```
+
+```{r}
+head(data)
+```
