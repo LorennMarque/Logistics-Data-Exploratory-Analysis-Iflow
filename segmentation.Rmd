@@ -1,0 +1,812 @@
+---
+title: "segmentacion"
+output: html_document
+date: "2024-10-17"
+---
+
+```{r}
+# Cargar datos
+data <- read.csv("iflow_clean.csv")
+head(data)
+```
+
+# Patrones en las entregas.
+
+> ## "El lunes es tan parecido con el jueves como el martes con el viernes y el miercoles con el sabado"
+
+```{r}
+# Barchart con la cantidad total de entregas por cliente
+barchart_cliente <- buenos_aires_data %>%
+  group_by(cliente) %>%
+  summarise(cantidad = n()) %>%
+  ggplot(aes(x = factor(cliente), y = cantidad, fill = factor(cliente))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Cantidad de Entregas por Cliente",
+       x = "Cliente", y = "Cantidad de Entregas") +
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar leyenda si los colores coinciden con los clientes
+
+# Mostrar el gráfico
+print(barchart_cliente)
+```
+
+```{r}
+# Agrupar y contar la cantidad de entregas por cliente y día de la semana
+entregas_por_cliente_dia <- buenos_aires_data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  group_by(cliente, dia_str) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado")))
+
+# Line chart de cantidad de entregas por cliente y día de la semana
+linechart_cliente_dia <- entregas_por_cliente_dia %>%
+  ggplot(aes(x = dia_str, y = cantidad, color = factor(cliente), group = cliente)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(title = "Cantidad de Entregas por Día de la Semana y Cliente",
+       x = "Día de la Semana", y = "Cantidad de Entregas", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mostrar el gráfico
+print(linechart_cliente_dia)
+```
+
+```{r}
+# Agrupar y contar las entregas por cliente, día y mes
+entregas_por_cliente_tiempo <- buenos_aires_data %>%
+  group_by(cliente, dia, mes) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  mutate(fecha = as.Date(paste(mes, dia, sep = "-"), format = "%m-%d"))
+
+# Line chart con la evolución de las entregas a lo largo del tiempo
+linechart_cliente_tiempo <- entregas_por_cliente_tiempo %>%
+  ggplot(aes(x = fecha, y = cantidad, color = factor(cliente), group = cliente)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Evolución de Entregas por Cliente a lo Largo del Tiempo",
+       x = "Fecha", y = "Cantidad de Entregas", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mostrar el gráfico
+print(linechart_cliente_tiempo)
+
+```
+
+```{r}
+# Filtrar los datos para excluir domingos y NAs en los días de la semana
+buenos_aires_data <- buenos_aires_data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  mutate(
+    dia_str = factor(dia_str, 
+                     levels = c("lunes", "martes", "miércoles", 
+                                "jueves", "viernes", "sábado"))
+  )
+
+# Crear el scatterplot con facetado por día de la semana
+scatter_grid <- buenos_aires_data %>%
+  ggplot(aes(x = longitud, y = latitud, color = factor(cliente))) +
+  geom_point(alpha = 0.1, size = 1) +  # Transparencia para evitar solapamiento
+  labs(title = "Entregas por Cliente y Día de la Semana",
+       x = "Longitud", y = "Latitud", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +  # Leyenda en la parte inferior
+  facet_wrap(~ dia_str)  # Crear un scatterplot para cada día de la semana
+
+# Mostrar el gráfico
+print(scatter_grid)
+```
+
+Vamos a calcular la **similitud espacial** de las entregas de cada cliente por **latitud y longitud** para los diferentes días de la semana.
+
+Para esto:
+
+1.  **Calcularemos la distancia entre los puntos (latitud y longitud)** para cada par de días.
+
+2.  **Generamos una matriz de distancias** por cliente, mostrando qué días tienen entregas más similares.
+
+3.  **Visualizamos la matriz de similitudes** usando un **heatmap**.
+
+### **Resultado Esperado:**
+
+Este **heatmap** permitirá ver:
+
+-   **Qué días tienen entregas más similares** para cada cliente (por ejemplo, si lunes y viernes son parecidos).
+
+-   Identificar patrones geográficos de las entregas a lo largo de los días.
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+
+# Filtrar los datos para asegurar que no haya NA y excluir domingos
+buenos_aires_data <- buenos_aires_data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  mutate(
+    dia_str = factor(dia_str, 
+                     levels = c("lunes", "martes", "miércoles", 
+                                "jueves", "viernes", "sábado"))
+  )
+
+# Función para calcular la distancia euclidiana promedio entre dos días
+calcular_distancia <- function(data, dia1, dia2) {
+  subset1 <- data %>% filter(dia_str == dia1) %>% select(latitud, longitud)
+  subset2 <- data %>% filter(dia_str == dia2) %>% select(latitud, longitud)
+  
+  # Si alguno de los días no tiene datos, devolvemos NA
+  if (nrow(subset1) == 0 | nrow(subset2) == 0) return(NA)
+  
+  distancias <- dist(rbind(subset1, subset2))
+  mean(as.numeric(distancias))  # Promedio de las distancias
+}
+
+# Crear una matriz de distancias para cada cliente
+clientes <- unique(buenos_aires_data$cliente)
+dias <- levels(buenos_aires_data$dia_str)
+
+resultados <- lapply(clientes, function(cliente) {
+  # Filtrar los datos del cliente
+  data_cliente <- buenos_aires_data %>% filter(cliente == cliente)
+  
+  # Inicializar la matriz de distancias
+  matriz <- matrix(NA, nrow = length(dias), ncol = length(dias), 
+                   dimnames = list(dias, dias))
+  
+  # Rellenar la matriz con distancias promedio entre pares de días
+  for (i in dias) {
+    for (j in dias) {
+      matriz[i, j] <- calcular_distancia(data_cliente, i, j)
+    }
+  }
+  list(cliente = cliente, matriz = matriz)
+})
+
+# Transformar las matrices de distancia a formato largo para ggplot2
+resultados_largos <- do.call(rbind, lapply(resultados, function(res) {
+  melt(res$matriz) %>% 
+    mutate(cliente = res$cliente)
+}))
+
+# Crear el heatmap de similitudes espaciales
+heatmap_similitud <- resultados_largos %>%
+  ggplot(aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  facet_wrap(~ cliente) +
+  scale_fill_gradient(low = "white", high = "red", na.value = "gray50") +
+  labs(title = "Similitud Espacial de Entregas por Día de la Semana",
+       x = "Día 1", y = "Día 2", fill = "Distancia Media") +
+  theme_minimal()
+
+# Mostrar el gráfico
+print(heatmap_similitud)
+
+
+```
+
+# Identificar entregas recurrentes
+
+# Segmentación en zonas de entregas
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(ggplot2)
+library(factoextra)
+
+# Filtrar los datos de Buenos Aires
+buenos_aires_data <- data %>%
+  filter(latitud >= -35.2, latitud <= -34.3,
+         longitud >= -58.8, longitud <= -57.9)
+
+# Extraer las coordenadas
+coords <- buenos_aires_data %>%
+  select(latitud, longitud)
+
+# Método del codo para determinar el número óptimo de clusters
+set.seed(123)
+wss_values <- sapply(1:10, function(k) {
+  kmeans(coords, centers = k, nstart = 10)$tot.withinss
+})
+
+# Graficar el método del codo con ggplot2
+elbow_plot <- data.frame(K = 1:10, WSS = wss_values) %>%
+  ggplot(aes(x = K, y = WSS)) +
+  geom_point() +
+  geom_line() +
+  geom_vline(xintercept = 4, linetype = "dashed", color = "red") +
+  annotate("text", x = 4.2, y = wss_values[4] + 10, 
+           label = "Elección óptima de K", color = "red", hjust = 0) +
+  labs(title = "Método del codo para determinar K óptimo",
+       x = "Número de Clusters K",
+       y = "Suma de cuadrados dentro del cluster (WSS)") +
+  theme_minimal()
+
+print(elbow_plot)
+```
+
+```{r}
+# Aplicar K-means con K = 4
+set.seed(123)
+kmeans_result <- kmeans(coords, centers = 4, nstart = 10)
+
+# Agregar los clusters al DataFrame original
+buenos_aires_data <- buenos_aires_data %>%
+  mutate(cluster = as.factor(kmeans_result$cluster))
+
+# Visualizar los clusters con ggplot2
+cluster_plot <- buenos_aires_data %>%
+  ggplot(aes(x = longitud, y = latitud, color = cluster)) +
+  geom_point(size = 2, alpha = 0.8) +
+  labs(title = "Clusters de Buenos Aires", 
+       x = "Longitud", y = "Latitud") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+print(cluster_plot)
+
+```
+
+```{r}
+# Visualizar los clusters en un mapa interactivo con leaflet
+palette <- colorFactor(palette = "Set1", domain = buenos_aires_data$cluster)
+
+leaflet(data = buenos_aires_data) %>%
+  addTiles() %>%
+  addCircleMarkers(~longitud, ~latitud, 
+                   color = ~palette(cluster), 
+                   radius = 2, fillOpacity = 0.8, 
+                   popup = ~paste("Cluster:", cluster)) %>%
+  addLegend("bottomright", pal = palette, values = ~cluster,
+            title = "Clusters", opacity = 0.2)
+```
+
+```{r}
+# Calcular la cantidad de entregas por cluster
+entregas_por_cluster <- buenos_aires_data %>%
+  group_by(cluster) %>%
+  summarise(cantidad = n()) %>%
+  ungroup()
+
+# Crear el barchart con ajustes adicionales
+barchart_cluster <- entregas_por_cluster %>%
+  ggplot(aes(x = cluster, y = cantidad, fill = cluster)) +
+  geom_bar(stat = "identity") +  # 'identity' para usar valores calculados
+  geom_text(aes(label = cantidad), 
+            vjust = -0.3, size = 5) +  # Ajustar la posición del texto
+  labs(title = "Cantidad de Entregas por Cluster",
+       x = "Cluster", y = "Cantidad de Entregas") +
+  theme_minimal(base_size = 14) +  # Aumentar tamaño general del gráfico
+  theme(
+    legend.position = "none",  # Ocultar leyenda
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # Aumentar margen superior
+  ) +
+  ylim(0, max(entregas_por_cluster$cantidad) * 1.1)  # Expandir límite del eje Y
+
+# Mostrar el gráfico
+print(barchart_cluster)
+```
+
+```{r}
+# Asegurar que 'dia_str' esté ordenado correctamente (de lunes a domingo)
+buenos_aires_data <- buenos_aires_data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado", "domingo")))
+
+# Crear el barchart usando ggplot2
+barchart <- buenos_aires_data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  ggplot(aes(x = dia_str , fill = cluster)) +
+  geom_bar(position = "dodge") +  # 'dodge' para barras agrupadas
+  labs(title = "Cantidad de entregas por día y cluster",
+       x = "Día de la semana", y = "Cantidad de entregas") +
+  theme_minimal() +
+  theme(legend.position = "bottom")  # Leyenda en la parte inferior
+
+print(barchart)
+```
+
+```{r}
+# Asegurar que 'dia_str' esté ordenado correctamente (de lunes a sábado)
+buenos_aires_data <- buenos_aires_data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado", "domingo")))
+
+# Agrupar y contar la cantidad de entregas por día y cluster
+entregas_por_dia_cluster <- buenos_aires_data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  group_by(dia_str, cluster) %>%
+  summarise(cantidad = n()) %>%
+  ungroup()
+
+# Crear el line chart usando ggplot2
+linechart <- entregas_por_dia_cluster %>%
+  ggplot(aes(x = dia_str, y = cantidad, color = cluster, group = cluster)) +
+  geom_line(size = 1) +  # Dibujar líneas
+  geom_point(size = 3) +  # Agregar puntos en los días
+  labs(title = "Cantidad de Entregas por Día y Cluster",
+       x = "Día de la semana", y = "Cantidad de Entregas") +
+  theme_minimal() +
+  theme(legend.position = "bottom")  # Leyenda en la parte inferior
+
+# Mostrar el gráfico
+print(linechart)
+```
+
+```{r}
+# Asegurar que 'dia_str' esté ordenado correctamente (de lunes a domingo)
+
+# Crear un dataframe con la cantidad de entregas por hora y cluster
+entregas_por_hora_cluster <- buenos_aires_data %>%
+  filter(hora > 10 & hora < 20) %>%
+  group_by(hora, cluster) %>%
+  summarise(cantidad = n()) %>%
+  ungroup()
+
+# Crear el line chart con ggplot2
+linechart <- entregas_por_hora_cluster %>%
+  ggplot(aes(x = hora, y = cantidad, color = cluster, group = cluster)) +
+  geom_line(size = 1) +  # Líneas más gruesas
+  geom_point(size = 3) +  # Puntos en cada hora
+  labs(title = "Cantidad de Entregas por Hora y Cluster",
+       x = "Hora del día", y = "Cantidad de Entregas") +
+  theme_minimal() +
+  theme(legend.position = "bottom")  # Leyenda en la parte inferior
+
+# Mostrar el gráfico
+print(linechart)
+
+```
+
+Estandarizamos la cantidad de entregas para estudiar si hay algun efecto de la hora de entrega segun la zona.
+
+```{r}
+# Calcular las proporciones por hora y cluster
+entregas_normalizadas <- buenos_aires_data %>%
+  filter(hora > 10 & hora < 20) %>%
+  group_by(hora, cluster) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  group_by(hora) %>%
+  mutate(proporcion = cantidad / sum(cantidad))  # Normalización por grupo de hora
+
+# Crear el line chart normalizado
+linechart_normalizado <- entregas_normalizadas %>%
+  ggplot(aes(x = hora, y = proporcion, color = cluster, group = cluster)) +
+  geom_line(size = 1) +  # Líneas más gruesas
+  geom_point(size = 3) +  # Puntos en cada hora
+  scale_y_continuous(labels = scales::percent) +  # Mostrar proporciones como porcentaje
+  labs(title = "Proporción de Entregas por Hora y Cluster Normalizado",
+       x = "Hora del día", y = "Proporción de Entregas") +
+  theme_minimal() +
+  theme(legend.position = "bottom")  # Leyenda en la parte inferior
+
+# Mostrar el gráfico
+print(linechart_normalizado)
+```
+
+# Entregas unicas por cliente?
+
+```{r}
+# 1. Contar la cantidad de entregas por id_orden y cliente
+entregas_por_orden <- data %>%
+  group_by(id_orden) %>%
+  summarise(
+    cantidad_entregas = n(),                     # Número total de entregas por orden
+    clientes_unicos = n_distinct(cliente),        # Número de clientes diferentes por orden
+    lista_clientes = paste(unique(cliente), collapse = ", ")  # Lista de clientes por orden
+  ) %>%
+  ungroup() %>% 
+  arrange(desc(cantidad_entregas))
+
+# Mostrar las primeras filas del resumen
+print(head(entregas_por_orden))
+```
+
+```{r}
+# Histograma para ver la distribución del número de entregas por orden
+ggplot(entregas_por_orden, aes(x = cantidad_entregas)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black") +
+  labs(title = "Distribución del Número de Entregas por Orden",
+       x = "Cantidad de Entregas por Orden", y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r}
+# 2. Filtrar las órdenes con más de una entrega
+ordenes_multiples <- entregas_por_orden %>%
+  filter(cantidad_entregas > 1)
+
+# Mostrar cuántas órdenes tienen más de una entrega
+cat("Total de órdenes con más de una entrega:", nrow(ordenes_multiples), "\n")
+
+```
+
+```{r}
+# 3. Analizar si las órdenes con múltiples entregas son de un solo cliente o más
+resumen_clientes <- ordenes_multiples %>%
+  count(clientes_unicos)  # Contar cuántas órdenes tienen 1 o más clientes únicos
+
+# Mostrar el resumen de clientes por orden
+print(resumen_clientes)
+
+# 4. Visualización con un gráfico de barras
+library(ggplot2)
+
+ggplot(resumen_clientes, aes(x = factor(clientes_unicos), y = n, fill = factor(clientes_unicos))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribución de Órdenes por Número de Clientes Únicos",
+       x = "Número de Clientes Únicos en la Orden",
+       y = "Cantidad de Órdenes") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+El grafico anterior demuestra que no existe algun caso donde un domicilio haya recibido una entrega de tanto el cliente 70 como el 20 sino que son mutuamente excluyentes.
+
+# Porcentaje de visitas dentro de rango horario planificado?
+
+# Diferencias significativas entre el horario planificado y real de visitas?
+
+Que tan dentro del margen de entrega estamos. Estamos entregando acorde a nuestra estimacion?
+
+# Estudiamos la primera entrega de cada dia para identificar un punto de partida.
+
+```{r}
+# Asegurar que las columnas de fecha y hora estén en formato POSIXct
+data <- data %>%
+  mutate(
+    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+# Encontrar la primera entrega de cada día
+primeras_entregas <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  filter(fin_visita == min(fin_visita)) %>%
+  ungroup()
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = primeras_entregas) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 3,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addLegend(
+    "bottomright", 
+    colors = "blue", 
+    labels = "Primera Entrega", 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+Cada punto azul es la primera entrega de un día. Si hacemos un cluster podemos estimar ubicaciones de partida o intentar averiguar porque están tan dispersas
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(leaflet)
+
+# Asegurar que la columna fin_visita esté en formato POSIXct
+data <- data %>%
+  mutate(
+    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+# Encontrar la primera y la segunda entrega de cada día
+entregas_dia <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  arrange(fin_visita) %>%  # Ordenar por hora de finalización
+  slice(1:2) %>%  # Seleccionar las dos primeras entregas
+  mutate(tipo = ifelse(row_number() == 1, "Primera Entrega", "Segunda Entrega")) %>%
+  ungroup()
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_dia) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Primera Entrega"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Segunda Entrega"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "red",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addLegend(
+    "bottomright", 
+    colors = c("blue", "red"), 
+    labels = c("Primera Entrega", "Segunda Entrega"), 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+
+```
+
+Los puntos rojos son la segunda entrega del día.
+
+Cada punto azul debería estar muy cerca de un punto rojo y no debería existir ningún otra entrega entre esos dos puntos.
+
+Si demostramos que en algún dia existen entrega entre los primeros k puntos del dia podríamos decir que las entregas no son eficientes
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(leaflet)
+
+# Parámetros: Selección de fecha específica y cantidad de entregas a mostrar
+fecha_seleccionada <- as.Date("2024-05-23")  # Cambia la fecha según lo que desees
+n_entregas <- 40  # Cambia este valor para limitar el número de entregas mostradas
+
+# Asegurar que la columna fin_visita esté en formato POSIXct
+data <- data %>%
+  mutate(
+    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+# Filtrar las entregas para la fecha seleccionada y ordenarlas por hora
+entregas_fecha <- data %>%
+  filter(as.Date(fin_visita) == fecha_seleccionada) %>%
+  arrange(fin_visita) %>%
+  slice(1:n_entregas) %>%  # Limitar a las primeras N entregas
+  mutate(orden = row_number())  # Agregar el orden de entrega
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_fecha) %>%
+  addTiles() %>%
+  # Agregar puntos con el número de orden como etiqueta personalizada y hora al hacer hover
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "black",
+    fillColor = "white",
+    fillOpacity = 1,
+    label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "center", 
+      textOnly = TRUE,
+      style = list(
+        "font-size" = "18px",  # Agrandar el texto
+        "font-weight" = "bold", 
+        "background-color" = "rgba(255, 255, 255, 0.7)", 
+        "border" = "1px solid black", 
+        "border-radius" = "100%", 
+        "padding" = "2px"
+      )
+    ),
+    # Mostrar la hora exacta como tooltip al hacer hover
+    popup = ~paste("Hora de Entrega:", format(fin_visita, "%H:%M:%S"))
+  ) %>%
+  # Agregar líneas que conecten las entregas en orden
+  addPolylines(
+    lng = ~longitud, lat = ~latitud,
+    data = entregas_fecha,
+    color = "blue", weight = 2
+  ) %>%
+  addLegend(
+    "bottomright", 
+    colors = "black", 
+    labels = paste("Recorrido del", as.character(fecha_seleccionada)), 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+
+
+
+```
+
+Este es un día de ejemplo. El orden de entrega tiene sentido para un camion y revisando los horarios tienen sentido con las distancias
+
+Lo interesante de esto esta aca. El recorrido diario viene en un orden natural hasta que encontramos un salto enorme.
+
+Entre la entrega 15 y la 16 hay unos 30 segundos de diferencia.
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(leaflet)
+library(geosphere)  # Para cálculos geoespaciales
+
+# Asegurar que la columna fin_visita esté en formato POSIXct
+data <- data %>%
+  mutate(
+    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+# Definir el número de entregas a mostrar por día (N)
+N <- 4  # Ajusta este número según tus necesidades
+
+# Encontrar las primeras N entregas de cada día
+entregas_dia <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  arrange(fin_visita) %>%
+  slice(1:N) %>%  # Seleccionar las primeras N entregas
+  mutate(tipo = case_when(
+    row_number() == 1 ~ "Primera Entrega",
+    row_number() == 2 ~ "Segunda Entrega",
+    TRUE ~ "Resto"
+  )) %>%
+  ungroup()
+
+# Crear el mapa interactivo
+mapa_leaflet <- leaflet() %>%
+  addTiles()
+
+# Dibujar un polígono envolvente para cada día
+fechas_unicas <- unique(entregas_dia$fecha)
+
+for (fecha in fechas_unicas) {
+  # Filtrar las entregas de la fecha actual
+  puntos <- entregas_dia %>% filter(fecha == !!fecha)
+  
+  # Obtener los índices del convex hull (envolvente convexa)
+  hull_indices <- chull(puntos$longitud, puntos$latitud)
+  
+  # Crear un polígono con los puntos del hull en orden
+  hull_coords <- puntos[hull_indices, c("longitud", "latitud")]
+  hull_coords <- rbind(hull_coords, hull_coords[1, ])  # Cerrar el polígono
+  
+  # Agregar el polígono al mapa
+  mapa_leaflet <- mapa_leaflet %>%
+    addPolygons(
+      lng = hull_coords$longitud,
+      lat = hull_coords$latitud,
+      color = "gray",
+      weight = 2,
+      opacity = 0.5,
+      fillOpacity = 0.1,
+      popup = paste("Fecha:", fecha)
+    )
+}
+
+# Agregar marcadores por tipo de entrega
+mapa_leaflet <- mapa_leaflet %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Primera Entrega"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Segunda Entrega"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "red",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Resto"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "black",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addLegend(
+    "bottomright", 
+    colors = c("blue", "red", "black"), 
+    labels = c("Primera Entrega", "Segunda Entrega", "Resto"), 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+
+
+```
+
+```{r}
+# Cargar librerías necesarias
+library(dplyr)
+library(leaflet)
+
+# Asegurar que la columna fin_visita esté en formato POSIXct
+data <- data %>%
+  mutate(
+    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
+  )
+
+# Extraer la primera y última entrega de cada día
+entregas_resumen <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  arrange(fin_visita) %>%
+  summarise(
+    primera_entrega = first(fin_visita),
+    lat_primera = first(latitud),
+    lon_primera = first(longitud),
+    ultima_entrega = last(fin_visita),
+    lat_ultima = last(latitud),
+    lon_ultima = last(longitud)
+  ) %>%
+  ungroup()
+
+# Crear un dataframe para los pares conectados (última entrega del día anterior con primera del actual)
+pares <- entregas_resumen %>%
+  mutate(
+    fecha_anterior = lag(fecha),
+    lat_ultima_anterior = lag(lat_ultima),
+    lon_ultima_anterior = lag(lon_ultima)
+  ) %>%
+  filter(!is.na(fecha_anterior))  # Eliminar el primer día, ya que no tiene día anterior
+
+# Crear el mapa interactivo
+mapa_leaflet <- leaflet() %>%
+  addTiles()
+
+# Agregar líneas entre la última entrega del día anterior y la primera entrega del día siguiente
+for (i in 1:nrow(pares)) {
+  mapa_leaflet <- mapa_leaflet %>%
+    addPolylines(
+      lng = c(pares$lon_ultima_anterior[i], pares$lon_primera[i]),
+      lat = c(pares$lat_ultima_anterior[i], pares$lat_primera[i]),
+      color = "gray",
+      weight = 2,
+      opacity = 0.5
+    )
+}
+
+# Agregar marcadores para la primera entrega de cada día
+mapa_leaflet <- mapa_leaflet %>%
+  addCircleMarkers(
+    data = entregas_resumen,
+    ~lon_primera, ~lat_primera,
+    radius = 6,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Primera Entrega:", primera_entrega)
+  ) %>%
+  # Agregar marcadores para la última entrega de cada día
+  addCircleMarkers(
+    data = entregas_resumen,
+    ~lon_ultima, ~lat_ultima,
+    radius = 6,
+    color = "red",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Última Entrega:", ultima_entrega)
+  ) %>%
+  # Agregar una leyenda
+  addLegend(
+    "bottomright",
+    colors = c("blue", "red", "gray"),
+    labels = c("Primera Entrega", "Última Entrega", "Conexión Entre Días"),
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+
+```
