@@ -65,7 +65,7 @@ nav ul li a:hover {
 }
 
 .hero {
-    background-image: url('images/camion.jpg');
+    background-image: url('../images/camion.jpg');
     padding: 150px 0 100px;
     text-align: center;
     height: 100vh;
