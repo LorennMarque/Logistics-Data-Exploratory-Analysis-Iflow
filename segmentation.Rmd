@@ -6,7 +6,7 @@ date: "2024-10-17"
 
 ```{r}
 # Cargar datos
-data <- read.csv("iflow_clean.csv")
+data <- read.csv("data/clean_iflow_data.csv")
 head(data)
 ```
 

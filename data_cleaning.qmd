@@ -28,7 +28,7 @@ library(viridis)
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # Tambien ocultamos la carga de datos
-raw_data <- read_csv("data.csv")
+raw_data <- read_csv("data/raw_iflow_data.csv")
 
 # Configuracion de claves de API
 # Clave de Mapbox (reemplaza con tu clave personal de Mapbox)

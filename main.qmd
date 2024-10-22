@@ -1,5 +1,5 @@
 ---
-title: "reporte"
+title: "Análisis de Datos"
 format: html
 editor: visual
 toc: true
@@ -8,7 +8,7 @@ number-sections: true
 theme: Darkly
 ---
 
-```{r,warning=FALSE,echo=FALSE}
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
 # Limpieza de datos
 library(tidyverse)
 library(dplyr)
@@ -25,7 +25,7 @@ library(viridis)
 mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
 
 # Cargamos los datos
-data <- read_csv("data/raw_iflow_data.csv")
+data <- read_csv("data/raw_iflow_data.csv", show_col_types = FALSE)
 ```
 
 # Introducción
@@ -89,7 +89,7 @@ data <- data %>%
   
   # Eliminamos InicioVisitaPlanificado y FinVisitaPlanificado
   
-  select(-InicioVisitaPlanificado, -FinVisitaPlanificado)
+  dplyr::select(-InicioVisitaPlanificado, -FinVisitaPlanificado)
 ```
 
 -   Formatear correctamente las variables
@@ -130,7 +130,7 @@ data <- data %>%
 
 # Reorganizar columnas.
 data <- data %>%
-  select(id_orden, cliente, localidad, direccion, latitud, longitud,
+  dplyr::select(id_orden, cliente, localidad, direccion, latitud, longitud,
          bultos, unidades, peso, inicio_horario, fin_horario, visita_planificada, inicio_visita, fin_visita)
 ```
 
@@ -155,7 +155,7 @@ cordenadas_vacias <- data %>%
     is.na(latitud) | is.na(longitud) | latitud == 0 | longitud == 0
     )
 
-cordenadas_vacias # dim 43 x 14
+# cordenadas_vacias # dim 43 x 14
 
 # Filtrar las observaciones donde id_orden está en cordenadas_vacias
 observaciones_id_orden <- data %>%
@@ -164,7 +164,7 @@ observaciones_id_orden <- data %>%
   summarise(count = n())
 
 # Mostrar el resultado
-observaciones_id_orden
+# observaciones_id_orden
 
 # Contar las apariciones de cada id_orden en cordenadas_vacias
 apariciones_cordenadas_vacias <- cordenadas_vacias %>%
@@ -183,7 +183,7 @@ resultado <- observaciones_id_orden %>%
   filter(count_diff > 0)
 
 # Mostrar el resultado
-resultado
+#resultado
 ```
 
 ```{r,warning=FALSE,echo=FALSE}
@@ -224,7 +224,7 @@ data <- reparar_lat_long(data, ids_a_reparar)
 
 Por último creamos algunas nuevas columnas para distintos análisis. Entre estas algunas columnas para facilitar la interacción con fechas y horarios de entregas.
 
-```{r,warning=FALSE,echo=FALSE}
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
 # Asegurar que los días se generen en español
 Sys.setlocale("LC_TIME", "es_ES.UTF-8") 
 
@@ -254,6 +254,10 @@ data <- data %>%
 
     Esto puede deberse a la carga apresurada por parte de los repartidores o a un sistema poco eficiente de carga. Podría solucionarse con mejoras de interfaz o flujo de carga.
 
+```{r,warning=FALSE,echo=FALSE}
+data <- read.csv("data/clean_iflow_data.csv")
+```
+
 ## Detección de anomalías.
 
 En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
@@ -262,11 +266,69 @@ El propósito de esta etapa fue **registrar y documentar** estas anomalías para
 
 ### PENDIENTE Centro de distribución en Mendoza.
 
-> mostrar grafico, imagen de google maps y explicación
+> mostrar grafico, imagen de google maps y explicación 
+
+::: panel-tabset
+## 📍 Mapa
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear un gráfico usando Plotly y Mapbox
+fig <- plot_ly(
+  data = data,
+  type = 'scattermapbox',
+  mode = 'markers',
+  lat = ~latitud,
+  lon = ~longitud,
+  marker = list(size = 8, color = 'blue', opacity = 0.7)
+)
+
+# Configurar el estilo de Mapbox (puedes cambiar el estilo)
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'carto-positron', # Otros estilos: 'open-street-map', 'stamen-terrain', etc.
+      zoom = 2, # Nivel de zoom
+      center = list(lat = mean(data$latitud), lon = mean(data$longitud)) # Centrado en los datos
+    ),
+    margin = list(t = 0, b = 0, l = 0, r = 0) # Margen para ajustar el espacio del gráfico
+  )
+
+# Mostrar el gráfico
+fig
+
+```
+
+##  🖼️ Screenshot
+
+![](images/screen.png)
+:::
 
 ### PENDIENTE Entregas en día domingo.
 
-> mostrar cantidad de entregas por día, indicar que los domingos no es comun e identificar las entregas co su horario.
+> mostrar cantidad de entregas por día, indicar que los domingos no es comun
+
+```{r,warning=FALSE,echo=FALSE}
+# Convertir la columna dia_str en un factor ordenado
+data <- data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado","domingo")))
+
+# Agrupar por el nombre del día y contar las entregas
+entregas_por_dia <- data %>%
+  group_by(dia_str) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  labs(title = "Cantidad de Entregas por Día de la Semana",
+       x = "Día de la Semana",
+       y = "Número de Entregas") +
+  theme_minimal()
+```
+
+> e identificar las entregas con su horario.
 
 ### PENDIENTE Entregas consecutivas inmediatas.
 
@@ -297,13 +359,248 @@ En esta sección ofrecemos una **visión superficial de los datos**, brindando u
 Este primer acercamiento busca proporcionar **intuición inicial** sobre los patrones más evidentes y áreas de interés para análisis más profundos.
 
 > Cuantas entregas tenemos en total?
->
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+dim(data)
+dim(data %>% filter(cliente==20))
+dim(data %>% filter(cliente==70))
+```
+
+Hay 27419 entregas, 16545 del cliente 20 y 10874 del cliente 70.
+
 > En que plazo estamos hablando, fecha de la primera entrega y la última?
->
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Ensure fin_visita is in the correct POSIXct format
+data$fin_visita <- as.POSIXct(data$fin_visita, format = "%Y-%m-%d %H:%M:%OS")
+
+# Filter the row with the maximum fin_visita
+data %>% 
+  filter(fin_visita == min(fin_visita, na.rm = TRUE))
+
+data %>% 
+  filter(fin_visita == max(fin_visita, na.rm = TRUE))
+
+```
+
+Primera visita en 2024-05-03 08:08:53. El 3 de Mayo.
+
+Última visita en 2024-08-06 16:57:00. El 8 de Agosto.
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Crear una columna con el primer día del mes correspondiente
+data <- data %>%
+  mutate(mes = as.Date(floor_date(fin_visita, "month")))  # Asegurar que 'mes' sea Date
+
+# Agrupar por mes y contar la cantidad de entregas
+entregas_por_mes <- data %>%
+  group_by(mes) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_mes, aes(x = mes, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(title = "Cantidad de Entregas por Mes",
+       x = "Mes",
+       y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
 > ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
->
+
+En promedio cada entrega tiene:
+
+-   28.40 Unidades
+
+-   5.75 Bultos
+
+-   Un peso de 41.15kg
+
+::: panel-tabset
+## 🔢 Unidades
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = unidades)) +
+  geom_histogram(binwidth = 50, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Unidades",
+       x = "Bultos",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$unidades) # Promedio
+```
+
+## 📦 Bultos
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = bultos)) +
+  geom_histogram(binwidth = 5, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Bultos",
+       x = "Unidades",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$bultos) # Promedio
+```
+
+## ⚖️ Peso
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = peso)) +
+  geom_histogram(binwidth = 50, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Peso",
+       x = "Unidades",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$peso) # Promedio
+```
+:::
+
 > ¿Cuál es la distribución de entregas por localidad o región?
->
+
+```{r,echo=FALSE, output=FALSE}
+# Geolocalización
+library(sf)
+library(raster)
+```
+
+::: panel-tabset
+## 🏘️ Barrios
+
+```{r,warning=FALSE,echo=FALSE}
+# Cargar los barrios desde el archivo GeoJSON
+barrios.comp <- st_read("maps/barrios.geojson")  # Reemplaza con la ruta correcta
+  
+barrios <- barrios.comp[, c("BARRIO", "geometry")]
+
+# Ver los nombres de las columnas del GeoDataFrame de barrios
+# Filtrar las entregas con coordenadas válidas y crear un objeto sf
+data_sf <- data %>%
+  filter(!is.na(latitud) & !is.na(longitud)) %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)  # Sistema de coordenadas WGS 84
+
+# Unir cada entrega con su barrio correspondiente
+entregas_por_barrio <- st_join(data_sf, barrios)
+
+# Agrupar por el campo "BARRIO" y contar el total de entregas
+entregas_agrupadas <- entregas_por_barrio %>%
+  group_by(BARRIO) %>%
+  summarise(total_entregas = n())
+
+# Unir la información agregada de entregas al GeoDataFrame de barrios
+barrios <- barrios %>%
+  st_join(entregas_agrupadas)
+
+# Rellenar valores NA (barrios sin entregas) con 0
+barrios$total_entregas[is.na(barrios$total_entregas)] <- 0
+
+# Crear el mapa con ggplot2
+ggplot(data = barrios) +
+  geom_sf(aes(fill = total_entregas)) +  # Colorear según la cantidad de entregas
+  scale_fill_viridis_c(option = "plasma", na.value = "white") +  # Paleta de colores
+  theme_minimal() +
+  labs(
+    title = "Cantidad de Entregas por Barrio en Buenos Aires",
+    fill = "Entregas"
+  )
+```
+
+## 🏙️ Comunas
+
+```{r, warning=FALSE, echo=FALSE}
+# 1. Cargar los barrios desde el archivo GeoJSON
+barrios.comp <- st_read("maps/barrios.geojson")  # Ajusta la ruta según corresponda
+
+# 2. Agrupar los polígonos por "COMUNA"
+comunas <- barrios.comp %>%
+  group_by(COMUNA) %>%
+  summarise(geometry = st_union(geometry))  # Unir los polígonos por comuna
+
+# Asegurarse de que COMUNA sea texto
+comunas$COMUNA <- as.character(comunas$COMUNA)
+
+# 3. Filtrar las entregas con coordenadas válidas y convertirlas a un objeto sf
+data_sf <- data %>%
+  filter(!is.na(latitud) & !is.na(longitud)) %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)
+
+# 4. Asignar cada entrega a su comuna correspondiente usando st_join
+entregas_por_comuna <- st_join(data_sf, comunas)
+
+# 5. Agrupar por "COMUNA" y contar el total de entregas
+entregas_agrupadas <- entregas_por_comuna %>%
+  group_by(COMUNA) %>%
+  summarise(total_entregas = n())
+
+# 6. Unir los datos de entregas agregados al GeoDataFrame de comunas
+comunas <- comunas %>%
+  st_join(entregas_agrupadas)
+
+# 7. Rellenar los valores NA (comunas sin entregas) con 0
+comunas$total_entregas[is.na(comunas$total_entregas)] <- 0
+
+# 8. Crear el mapa con ggplot2
+ggplot(data = comunas) +
+  geom_sf(aes(fill = total_entregas)) +
+  scale_fill_viridis_c(option = "plasma", na.value = "white") +
+  theme_minimal() +
+  labs(
+    title = "Cantidad de Entregas por Comuna en Buenos Aires",
+    fill = "Entregas"
+  )
+
+
+```
+
+## 🌡️ Entregas Individuales
+
+```{r, warning=FALSE, echo=FALSE}
+# Mapa de calor de entregas
+heatmap_data <- data %>%
+  group_by(latitud, longitud) %>%
+  summarise(total_entregas = n())
+
+# Graficar un mapa de calor para visualizar las zonas con mayor densidad de entregas
+heatmap_plot <- plot_ly(
+  heatmap_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  z = ~total_entregas,
+  type = 'densitymapbox',
+  colorscale = 'Viridis',
+  radius = 10
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),
+      zoom = 10,
+      style = "open-street-map"
+    ),
+    title = "Mapa de Calor de Entregas en Buenos Aires",
+    showlegend = FALSE,  # Ocultar la leyenda
+    margin = list(r = 0, t = 60, b = 0, l = 0)  # Agregar más espacio en la parte superior
+  )
+
+# Mostrar el mapa de calor
+heatmap_plot
+
+```
+:::
+
 > ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
 >
 > ¿Existen picos de entregas en ciertos días u horas?
