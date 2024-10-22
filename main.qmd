@@ -2,8 +2,436 @@
 title: "reporte"
 format: html
 editor: visual
+toc: true
+toc-location: left
+number-sections: true
+theme: Darkly
 ---
 
-```{r}
+```{r,warning=FALSE,echo=FALSE}
+# Limpieza de datos
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(lubridate)
 
+# Analisis exploratorio
+library(DataExplorer)
+library(inspectdf)
+library(plotly)
+library(viridis)
+
+# Claves de APIs
+mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
+
+# Cargamos los datos
+data <- read_csv("data/raw_iflow_data.csv")
 ```
+
+# Introducción
+
+En el marco del **Primer Desafío Internacional de la Red Latinoamericana de Ciencia de Datos**, este análisis tiene como propósito abordar un problema práctico del ámbito logístico. El proyecto promueve la colaboración entre estudiantes de diversas universidades latinoamericanas, fomentando el trabajo en equipo y la toma de decisiones basadas en datos reales.
+
+El **objeto de estudio** es un conjunto de datos proporcionado por **iFlow**, una empresa argentina especializada en logística integral, con operaciones tanto nacionales como internacionales dentro del MERCOSUR. iFlow se dedica a la gestión y co-gerencia de cadenas de abastecimiento para sus clientes, buscando optimizar procesos y mejorar la eficiencia operativa.
+
+### Objetivo del análisis
+
+Este análisis tiene como objetivo:
+
+1.  **Comprender y describir** las principales características del conjunto de datos, que incluye **27.484 registros de entregas** realizadas en un período de tres meses.
+
+2.  **Identificar patrones y tendencias** que permitan obtener insights relevantes sobre las operaciones de iFlow.
+
+3.  **Detectar posibles inconsistencias o errores** en la base de datos, propias de un entorno operativo real, para evaluarlas e integrarlas al análisis.
+
+### Metodología y Alcance
+
+Se trabajará con información detallada de las entregas, incluyendo aspectos como dirección, localidad, coordenadas geográficas, bultos, peso y unidades transportadas, así como los tiempos de inicio y finalización de cada entrega. A partir de estos datos se buscará:
+
+-   Visualizar y analizar la eficiencia operativa.
+
+-   Detectar áreas de mejora en los procesos logísticos.
+
+-   Proponer soluciones basadas en evidencia que contribuyan a la optimización del servicio.
+
+Este trabajo culminará con la presentación de los hallazgos y recomendaciones, cuyo objetivo final es fortalecer la capacidad operativa de iFlow, mejorando su eficiencia y calidad de servicio en el entorno competitivo del MERCOSUR.
+
+# Análisis
+
+## Limpieza de datos.
+
+La primera etapa de este análisis consistió en la **limpieza de datos**, un proceso esencial para garantizar la calidad y fiabilidad de los resultados. Dado que la base proporcionada por **iFlow** contiene información real sobre 27.484 entregas realizadas en un período de tres meses, nos enfocamos en **identificar problemas comunes** como:
+
+-   **Valores faltantes:** Campos incompletos que podrían afectar el análisis.
+
+-   **Duplicados:** Registros repetidos que distorsionan los resultados.
+
+-   **Inconsistencias:** Errores en el formato o contenido de los datos (por ejemplo, coordenadas geográficas incorrectas o tiempos de entrega incoherentes).
+
+-   **Outliers:** Valores atípicos que requieren evaluación para determinar si corresponden a errores o situaciones reales.
+
+Una vez detectados estos problemas, aplicamos las transformaciones necesarias, como la eliminación de duplicados, la corrección de formatos y la imputación o exclusión de valores faltantes según el caso. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.
+
+### Problemas encontrados.
+
+En primer lugar realizamos algunos cambios para **facilitar el trabajo** con los datos.
+
+-   Tratar Columnas innecesarias
+
+    La columna InicioVisitaPlanificado y FinVisitaPlanificado contienen los mismos valores por lo que las unificamos en una nueva columna.
+
+```{r,warning=FALSE,echo=FALSE}
+
+data <- data %>%
+  # Nueva columna para almacenar el horario planificado
+  
+  mutate(visita_planificada = InicioVisitaPlanificado) %>%
+  
+  # Eliminamos InicioVisitaPlanificado y FinVisitaPlanificado
+  
+  select(-InicioVisitaPlanificado, -FinVisitaPlanificado)
+```
+
+-   Formatear correctamente las variables
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Convertir columnas correspondientes a formato de fecha y hora
+data$InicioVisitaReal <- as.POSIXct(data$InicioVisitaReal,
+                                    format="%Y-%m-%d %H:%M:%OS")
+
+data$FinVisitaReal <- as.POSIXct(data$FinVisitaReal,
+                                 format="%Y-%m-%d %H:%M:%OS")
+
+data$visita_planificada <- as.POSIXct(data$visita_planificada,
+                                      format="%Y-%m-%d %H:%M:%OS")
+
+# Las columnas InicioHorario1, FinHorario1, las pasamos a caracter para categorizarlas facilmente.
+data$InicioHorario1 <- as.character(data$InicioHorario1)
+data$FinHorario1 <- as.character(data$FinHorario1)
+
+# Pasamos variables categóricas a factores.
+data$cliente <- as.factor(data$cliente)
+```
+
+-   Renombrar las columnas por nombres intuitivos.
+
+```{r ,warning=FALSE,echo=FALSE}
+# Renombrar columnas específicas con dplyr
+data <- data %>%
+  rename(      id_orden = iddomicilioorden,
+         inicio_horario = InicioHorario1,
+            fin_horario = FinHorario1,
+                 bultos = Bultos,
+                   peso = Peso,
+               unidades = Unidades,
+          inicio_visita = InicioVisitaReal,
+             fin_visita = FinVisitaReal)
+
+# Reorganizar columnas.
+data <- data %>%
+  select(id_orden, cliente, localidad, direccion, latitud, longitud,
+         bultos, unidades, peso, inicio_horario, fin_horario, visita_planificada, inicio_visita, fin_visita)
+```
+
+Con estos cambios realizados pasamos a modificaciones y **arreglos necesarios** para un análisis correcto de los datos.
+
+-   Eliminación de filas duplicadas.
+
+```{r,warning=FALSE,echo=FALSE}
+data <- data %>%
+  distinct()
+```
+
+-   Arreglo de valores faltantes en coordenadas.
+
+    El dato de coordenadas en algunas filas estaba vacio o indicaba "0". En algunos de estos casos pudimos rellenar estas coordenadas con datos existentes del domicilio (21 filas). En caso de que esto no sea posible las filas fueron eliminadas (19 filas) y no serán tomadas en cuenta para el análisis.
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Filtrar las filas donde latitud o longitud son NA
+cordenadas_vacias <- data %>%
+  filter(
+    is.na(latitud) | is.na(longitud) | latitud == 0 | longitud == 0
+    )
+
+cordenadas_vacias # dim 43 x 14
+
+# Filtrar las observaciones donde id_orden está en cordenadas_vacias
+observaciones_id_orden <- data %>%
+  filter(id_orden %in% cordenadas_vacias$id_orden) %>%
+  group_by(id_orden) %>%
+  summarise(count = n())
+
+# Mostrar el resultado
+observaciones_id_orden
+
+# Contar las apariciones de cada id_orden en cordenadas_vacias
+apariciones_cordenadas_vacias <- cordenadas_vacias %>%
+  group_by(id_orden) %>%
+  summarise(na_count = n())
+
+# Unir las tablas por id_orden
+resultado <- observaciones_id_orden %>%
+  left_join(apariciones_cordenadas_vacias, by = "id_orden") %>%
+  # Si no hay coincidencias en cordenadas_vacias, establecer na_count en 0
+  mutate(na_count = ifelse(is.na(na_count), 0, na_count)) %>%
+  # Restar las apariciones de cordenadas_vacias del total
+  mutate(count_diff = count - na_count) %>%
+
+# Filtrar solo los id_orden donde count_diff es mayor a 0
+  filter(count_diff > 0)
+
+# Mostrar el resultado
+resultado
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Definir la función que revisa y sobrescribe latitud y longitud
+reparar_lat_long <- function(dataset, ids) {
+  # Iterar sobre cada id de la lista
+  for (id in ids) {
+    # Filtrar las observaciones válidas de latitud y longitud para este id_orden
+    observaciones_validas <- dataset %>%
+      filter(id_orden == id & !is.na(latitud) & !is.na(longitud) & latitud != 0 & longitud != 0)
+    
+    # Si existen observaciones válidas, tomar la primera ocurrencia
+    if (nrow(observaciones_validas) > 0) {
+      latitud_valida <- observaciones_validas$latitud[1]
+      longitud_valida <- observaciones_validas$longitud[1]
+      
+      # Sobrescribir las observaciones con latitud o longitud nulos o 0
+      dataset <- dataset %>%
+        mutate(
+          latitud = ifelse(id_orden == id & (is.na(latitud) | latitud == 0), latitud_valida, latitud),
+          longitud = ifelse(id_orden == id & (is.na(longitud) | longitud == 0), longitud_valida, longitud)
+        )
+    }
+  }
+  
+  # Retornar el dataset reparado
+  return(dataset)
+}
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Ejecutar la función usando los id_orden de la columna resultado
+ids_a_reparar <- resultado$id_orden
+
+# Aplicar la función a raw_data
+data <- reparar_lat_long(data, ids_a_reparar)
+```
+
+Por último creamos algunas nuevas columnas para distintos análisis. Entre estas algunas columnas para facilitar la interacción con fechas y horarios de entregas.
+
+```{r,warning=FALSE,echo=FALSE}
+# Asegurar que los días se generen en español
+Sys.setlocale("LC_TIME", "es_ES.UTF-8") 
+
+# Crear la columna 'dia_str' con normalización de caracteres
+data <- data %>%
+  mutate(
+    dia = as.integer(format(fin_visita, "%d")),
+    mes = as.integer(format(fin_visita, "%m")),
+    hora = as.integer(format(fin_visita, "%H")),
+    diferencia_minutos = as.numeric(
+      difftime(fin_visita, visita_planificada, units = "mins")),
+    dia_str = tolower(iconv(weekdays(fin_visita, abbreviate = FALSE), 
+                            to = "UTF-8")),
+    duracion_visita_min = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "mins")),
+    duracion_visita_horas = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "hours"))
+  )
+
+# Guardamos los datos limpios
+# write.csv(x = data, file = "iflow_clean.csv")
+```
+
+### Observaciones y sugerencias.
+
+1.  Un gran porcentaje de las entregas tienen registrado el mismo horario para el inicio y final de la visitas.
+
+    Esto puede deberse a la carga apresurada por parte de los repartidores o a un sistema poco eficiente de carga. Podría solucionarse con mejoras de interfaz o flujo de carga.
+
+## Detección de anomalías.
+
+En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
+
+El propósito de esta etapa fue **registrar y documentar** estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.
+
+### PENDIENTE Centro de distribución en Mendoza.
+
+> mostrar grafico, imagen de google maps y explicación
+
+### PENDIENTE Entregas en día domingo.
+
+> mostrar cantidad de entregas por día, indicar que los domingos no es comun e identificar las entregas co su horario.
+
+### PENDIENTE Entregas consecutivas inmediatas.
+
+Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
+
+Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
+
+Horarios cargados de forma incorrecta podrian causar:
+
+1.  Mala estimación sobre tiempos muertos.
+2.  Dificulta optimizar los procesos de entrega.
+3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
+
+Algunas sugerencias e ideas para mejorar esto incluyen:
+
+-   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
+
+-   Implementación de un sistema de validación de los datos para evitar duplicados.
+
+-   Desarrollo y uso de hardware específico para la carga de datos.
+
+## PENDIENTE Vista general.
+
+En esta sección ofrecemos una **visión superficial de los datos**, brindando un panorama inicial que permite familiarizarnos con su estructura y contenido.
+
+![](images/clipboard-2661057119.png)
+
+Este primer acercamiento busca proporcionar **intuición inicial** sobre los patrones más evidentes y áreas de interés para análisis más profundos.
+
+> Cuantas entregas tenemos en total?
+>
+> En que plazo estamos hablando, fecha de la primera entrega y la última?
+>
+> ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
+>
+> ¿Cuál es la distribución de entregas por localidad o región?
+>
+> ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
+>
+> ¿Existen picos de entregas en ciertos días u horas?
+>
+> ¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?
+>
+> ¿Qué clientes generan más volumen de entregas y cuáles presentan más problemas o irregularidades?
+
+## Segmentación y patrones en entregas.
+
+### PENDIENTE Volumen y Distribución de Entregas
+
+> ¿Cuántas entregas corresponden a cada cliente?
+>
+> Identificar entregas recurrentes a domicilios, zonas de entregas.
+>
+> Los domicilios reciben entregas de un único cliente o solo 20 o 70?
+>
+> ¿Qué porcentaje de entregas se concentra en las localidades más activas?
+
+### PENDIENTE Estacionalidad y temporalidad.
+
+> ¿Qué días de la semana o meses tienen más visitas?
+>
+> ¿Existen patrones estacionales en la demanda de entregas (meses con mayor/menor volumen)?
+>
+> ¿El volumen de entregas varía significativamente entre diferentes meses del año?
+>
+> ¿Cómo varía la demanda entre diferentes semanas o meses?
+
+### PENDIENTE Eficiencia y Rendimiento Operativo
+
+> ¿Cuál es el tiempo promedio de entrega por cliente y por localidad?
+>
+> ¿Qué zonas presentan mayores retrasos o entregas fuera de tiempo?
+>
+> > Identifica áreas con posibles cuellos de botella logísticos.
+>
+> ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
+
+## Distribución de entregas
+
+### PENDIENTE Volumen y Cobertura Geográfica
+
+> ¿Cuántas entregas se realizaron en cada localidad o región?
+>
+> ¿Qué porcentaje del total de entregas corresponde a las principales localidades?
+>
+> ¿Qué clientes concentran el mayor volumen de entregas en cada región?
+
+### PENDIENTE Patrones Temporales por Región
+
+> ¿Qué días de la semana tienen mayor volumen de entregas en cada localidad?
+>
+> ¿Existen picos de entregas en determinadas horas del día según la región?
+>
+> ¿Cómo varía el volumen de entregas entre diferentes meses o semanas en cada región?
+
+### PENDIENTE Eficiencia Operativa por Zona
+
+> ¿Cuáles son las rutas o regiones con mayor concentración de entregas por cliente?
+>
+> ¿Qué localidades presentan mayores retrasos en las entregas?
+>
+> ¿Cómo afecta la distancia al centro de distribución en los tiempos de entrega?
+>
+> ¿Qué impacto tienen las condiciones geográficas (latitud y longitud) en los tiempos de entrega?
+>
+> Detecta si la ubicación geográfica influye en el rendimiento logístico.
+
+### PENDIENTE Optimización y Recursos
+
+> ¿Cómo varía la densidad de entregas por zona y qué impacto tiene en la asignación de recursos?
+>
+> ¿Qué zonas podrían beneficiarse de una mayor frecuencia de entregas para mejorar la eficiencia?
+>
+> ¿Existen patrones geográficos en los pedidos con anomalías o entregas fallidas?
+
+## Unidades de Transporte
+
+En los datos proporcionados no contamos con la información necesaria para realizar un análisis específico de las unidades de transporte, ya que sería indispensable disponer de un identificador único para cada vehículo. Sin embargo, incluimos esta sección como prueba de concepto para demostrar el valor que podría generar este tipo de análisis en la operación logística. Disponer de esta información permitiría evaluar aspectos fundamentales de la gestión de la flota, optimización de rutas y eficiencia operativa.
+
+A continuación, presentamos algunas preguntas clave que podrían responderse con un análisis detallado de las unidades de transporte:
+
+#### **Preguntas sobre Desempeño y Utilización de la Flota**
+
+1.  **¿Cuánto tiempo real dedica cada unidad a entregas versus tiempo muerto (espera, carga, mantenimiento)?**
+
+2.  **¿Cuáles son los tiempos de ruta promedio por camión y cómo varían según la región?**
+
+3.  **¿Es necesaria la cantidad actual de camiones, o existe capacidad ociosa que podría aprovecharse?**
+
+4.  **¿Hay rutas o zonas específicas donde sería más eficiente reducir o ampliar la flota?**
+
+5.  **¿Qué porcentaje de las unidades completan sus rutas dentro de los tiempos planificados?**
+
+#### **Preguntas sobre Optimización de Rutas y Rendimiento**
+
+6.  **¿Se podrían consolidar entregas para reducir la cantidad de viajes sin afectar el servicio?**
+
+7.  **¿Existen unidades con rutas ineficientes que podrían optimizarse con ajustes?**
+
+8.  **¿Cuál es la relación entre la distancia recorrida y el volumen entregado por unidad?**
+
+9.  **¿Se podrían reducir tiempos muertos al mejorar la planificación de entregas o las ventanas horarias?**
+
+Si bien no contamos con la información completa sobre las unidades de transporte, hemos realizado estimaciones basadas en los datos disponibles y presentamos nuestro análisis como aproximación para obtener insights relevantes.
+
+> Ver las sedes de Iflow (que conocemos)
+>
+> Graficar la primera entrega de cada día. Graficar la primera y segunda entrega de cada día. Esperariamos que estas entregas rodeen cada sede. Entender su comportamiento.
+>
+> Graficar la primera y última entrega del día. (Aclarar que no es la de un camion en particular)
+>
+> Grafico de orden de las entregas de un día en específico. Conclusiones:
+>
+> -   Parece que los camiones no mezclan productos del cliente 20 y 70.
+>
+> -   Tiempos muertos, identificar trayectorias por distancia.
+>
+> -   Errores de carga cuando hay localidades consecutivas.
+>
+> Grafico de trayectoria en orden para cada cliente. Identificar puntos que demuestran rutas poco eficientes. Cruces de lineas, tiempo perdido.
+>
+> Graficar tiempo entre entregas por hora del día. (Tiempo muerto)
+>
+> Ampliar u organizar nuevos centros de distribución. (En base a los datos de estos dos clientes), Segmentación de entregas (global y por cliente) para identificar puntos donde sería ideal. (Centro de zona, cruce de zonas, cluster con más o menor actividad)
+
+# Conclusiones
+
+# Apéndice

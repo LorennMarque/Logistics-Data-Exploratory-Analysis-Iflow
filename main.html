@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>reporte</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="main_files/libs/clipboard/clipboard.min.js"></script>
+<script src="main_files/libs/quarto-html/quarto.js"></script>
+<script src="main_files/libs/quarto-html/popper.min.js"></script>
+<script src="main_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="main_files/libs/quarto-html/anchor.min.js"></script>
+<link href="main_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="main_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="main_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="main_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="main_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introducción" id="toc-introducción" class="nav-link active" data-scroll-target="#introducción"><span class="header-section-number">1</span> Introducción</a>
+  <ul class="collapse">
+  <li><a href="#objetivo-del-análisis" id="toc-objetivo-del-análisis" class="nav-link" data-scroll-target="#objetivo-del-análisis"><span class="header-section-number">1.0.1</span> Objetivo del análisis</a></li>
+  <li><a href="#metodología-y-alcance" id="toc-metodología-y-alcance" class="nav-link" data-scroll-target="#metodología-y-alcance"><span class="header-section-number">1.0.2</span> Metodología y Alcance</a></li>
+  </ul></li>
+  <li><a href="#análisis" id="toc-análisis" class="nav-link" data-scroll-target="#análisis"><span class="header-section-number">2</span> Análisis</a>
+  <ul class="collapse">
+  <li><a href="#limpieza-de-datos." id="toc-limpieza-de-datos." class="nav-link" data-scroll-target="#limpieza-de-datos."><span class="header-section-number">2.1</span> Limpieza de datos.</a>
+  <ul class="collapse">
+  <li><a href="#problemas-encontrados." id="toc-problemas-encontrados." class="nav-link" data-scroll-target="#problemas-encontrados."><span class="header-section-number">2.1.1</span> Problemas encontrados.</a></li>
+  <li><a href="#observaciones-y-sugerencias." id="toc-observaciones-y-sugerencias." class="nav-link" data-scroll-target="#observaciones-y-sugerencias."><span class="header-section-number">2.1.2</span> Observaciones y sugerencias.</a></li>
+  </ul></li>
+  <li><a href="#detección-de-anomalías." id="toc-detección-de-anomalías." class="nav-link" data-scroll-target="#detección-de-anomalías."><span class="header-section-number">2.2</span> Detección de anomalías.</a>
+  <ul class="collapse">
+  <li><a href="#pendiente-centro-de-distribución-en-mendoza." id="toc-pendiente-centro-de-distribución-en-mendoza." class="nav-link" data-scroll-target="#pendiente-centro-de-distribución-en-mendoza."><span class="header-section-number">2.2.1</span> PENDIENTE Centro de distribución en Mendoza.</a></li>
+  <li><a href="#pendiente-entregas-en-día-domingo." id="toc-pendiente-entregas-en-día-domingo." class="nav-link" data-scroll-target="#pendiente-entregas-en-día-domingo."><span class="header-section-number">2.2.2</span> PENDIENTE Entregas en día domingo.</a></li>
+  <li><a href="#pendiente-entregas-consecutivas-inmediatas." id="toc-pendiente-entregas-consecutivas-inmediatas." class="nav-link" data-scroll-target="#pendiente-entregas-consecutivas-inmediatas."><span class="header-section-number">2.2.3</span> PENDIENTE Entregas consecutivas inmediatas.</a></li>
+  </ul></li>
+  <li><a href="#pendiente-vista-general." id="toc-pendiente-vista-general." class="nav-link" data-scroll-target="#pendiente-vista-general."><span class="header-section-number">2.3</span> PENDIENTE Vista general.</a></li>
+  </ul></li>
+  <li><a href="#conclusiones" id="toc-conclusiones" class="nav-link" data-scroll-target="#conclusiones"><span class="header-section-number">3</span> Conclusiones</a></li>
+  <li><a href="#apéndice" id="toc-apéndice" class="nav-link" data-scroll-target="#apéndice"><span class="header-section-number">4</span> Apéndice</a></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">reporte</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
+
+Attaching package: 'plotly'
+
+
+The following object is masked from 'package:ggplot2':
+
+    last_plot
+
+
+The following object is masked from 'package:stats':
+
+    filter
+
+
+The following object is masked from 'package:graphics':
+
+    layout
+
+
+Loading required package: viridisLite
+
+Rows: 27484 Columns: 16
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr   (4): direccion, localidad, InicioVisitaReal, FinVisitaReal
+dbl  (10): iddomicilioorden, InicioHorario1, FinHorario1, latitud, longitud,...
+dttm  (2): InicioVisitaPlanificado, FinVisitaPlanificado
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+</div>
+<section id="introducción" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Introducción</h1>
+<p>En el marco del <strong>Primer Desafío Internacional de la Red Latinoamericana de Ciencia de Datos</strong>, este análisis tiene como propósito abordar un problema práctico del ámbito logístico. El proyecto promueve la colaboración entre estudiantes de diversas universidades latinoamericanas, fomentando el trabajo en equipo y la toma de decisiones basadas en datos reales.</p>
+<p>El <strong>objeto de estudio</strong> es un conjunto de datos proporcionado por <strong>iFlow</strong>, una empresa argentina especializada en logística integral, con operaciones tanto nacionales como internacionales dentro del MERCOSUR. iFlow se dedica a la gestión y co-gerencia de cadenas de abastecimiento para sus clientes, buscando optimizar procesos y mejorar la eficiencia operativa.</p>
+<section id="objetivo-del-análisis" class="level3" data-number="1.0.1">
+<h3 data-number="1.0.1" class="anchored" data-anchor-id="objetivo-del-análisis"><span class="header-section-number">1.0.1</span> Objetivo del análisis</h3>
+<p>Este análisis tiene como objetivo:</p>
+<ol type="1">
+<li><p><strong>Comprender y describir</strong> las principales características del conjunto de datos, que incluye <strong>27.484 registros de entregas</strong> realizadas en un período de tres meses.</p></li>
+<li><p><strong>Identificar patrones y tendencias</strong> que permitan obtener insights relevantes sobre las operaciones de iFlow.</p></li>
+<li><p><strong>Detectar posibles inconsistencias o errores</strong> en la base de datos, propias de un entorno operativo real, para evaluarlas e integrarlas al análisis.</p></li>
+</ol>
+</section>
+<section id="metodología-y-alcance" class="level3" data-number="1.0.2">
+<h3 data-number="1.0.2" class="anchored" data-anchor-id="metodología-y-alcance"><span class="header-section-number">1.0.2</span> Metodología y Alcance</h3>
+<p>Se trabajará con información detallada de las entregas, incluyendo aspectos como dirección, localidad, coordenadas geográficas, bultos, peso y unidades transportadas, así como los tiempos de inicio y finalización de cada entrega. A partir de estos datos se buscará:</p>
+<ul>
+<li><p>Visualizar y analizar la eficiencia operativa.</p></li>
+<li><p>Detectar áreas de mejora en los procesos logísticos.</p></li>
+<li><p>Proponer soluciones basadas en evidencia que contribuyan a la optimización del servicio.</p></li>
+</ul>
+<p>Este trabajo culminará con la presentación de los hallazgos y recomendaciones, cuyo objetivo final es fortalecer la capacidad operativa de iFlow, mejorando su eficiencia y calidad de servicio en el entorno competitivo del MERCOSUR.</p>
+</section>
+</section>
+<section id="análisis" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Análisis</h1>
+<section id="limpieza-de-datos." class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="limpieza-de-datos."><span class="header-section-number">2.1</span> Limpieza de datos.</h2>
+<p>La primera etapa de este análisis consistió en la <strong>limpieza de datos</strong>, un proceso esencial para garantizar la calidad y fiabilidad de los resultados. Dado que la base proporcionada por <strong>iFlow</strong> contiene información real sobre 27.484 entregas realizadas en un período de tres meses, nos enfocamos en <strong>identificar problemas comunes</strong> como:</p>
+<ul>
+<li><p><strong>Valores faltantes:</strong> Campos incompletos que podrían afectar el análisis.</p></li>
+<li><p><strong>Duplicados:</strong> Registros repetidos que distorsionan los resultados.</p></li>
+<li><p><strong>Inconsistencias:</strong> Errores en el formato o contenido de los datos (por ejemplo, coordenadas geográficas incorrectas o tiempos de entrega incoherentes).</p></li>
+<li><p><strong>Outliers:</strong> Valores atípicos que requieren evaluación para determinar si corresponden a errores o situaciones reales.</p></li>
+</ul>
+<p>Una vez detectados estos problemas, aplicamos las transformaciones necesarias, como la eliminación de duplicados, la corrección de formatos y la imputación o exclusión de valores faltantes según el caso. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.</p>
+<section id="problemas-encontrados." class="level3" data-number="2.1.1">
+<h3 data-number="2.1.1" class="anchored" data-anchor-id="problemas-encontrados."><span class="header-section-number">2.1.1</span> Problemas encontrados.</h3>
+<p>En primer lugar realizamos algunos cambios para <strong>facilitar el trabajo</strong> con los datos.</p>
+<ul>
+<li><p>Tratar Columnas innecesarias</p>
+<p>La columna InicioVisitaPlanificado y FinVisitaPlanificado contienen los mismos valores por lo que las unificamos en una nueva columna.</p></li>
+</ul>
+<ul>
+<li>Formatear correctamente las variables</li>
+</ul>
+<ul>
+<li>Renombrar las columnas por nombres intuitivos.</li>
+</ul>
+<p>Con estos cambios realizados pasamos a modificaciones y <strong>arreglos necesarios</strong> para un análisis correcto de los datos.</p>
+<ul>
+<li>Eliminación de filas duplicadas.</li>
+</ul>
+<ul>
+<li><p>Arreglo de valores faltantes en coordenadas.</p>
+<p>El dato de coordenadas en algunas filas estaba vacio o indicaba “0”. En algunos de estos casos pudimos rellenar estas coordenadas con datos existentes del domicilio (21 filas). En caso de que esto no sea posible las filas fueron eliminadas (19 filas) y no serán tomadas en cuenta para el análisis.</p></li>
+</ul>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 42 × 14
+   id_orden cliente localidad   direccion latitud longitud bultos unidades  peso
+      &lt;dbl&gt; &lt;fct&gt;   &lt;chr&gt;       &lt;chr&gt;       &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt; &lt;dbl&gt;
+ 1   163957 20      CAPITAL FE… DR ENRIQ…       0        0   2           2  13  
+ 2   167030 70      CAPITAL     JOSE HER…      NA       NA   2.44       55  10.8
+ 3   173085 20      GENERAL PA… CTRO COM…       0        0   4           4   0  
+ 4   176714 20      CAPITAL FE… AV. R. S…      NA       NA   5           5  39  
+ 5   176717 20      CAPITAL FE… AV. CORR…      NA       NA   2           2  19.5
+ 6   176731 70      CAPITAL     VEDIA 36…      NA       NA   5.5        18  50.2
+ 7   177884 20      CAPITAL FE… LARREA 1…      NA       NA   3           3  19.5
+ 8   177934 20      CAPITAL FE… AV CORRI…      NA       NA  12          12  12  
+ 9   177988 20      CAPITAL FE… CUBA 291…      NA       NA   5           5   0  
+10   178012 70      CAPITAL     AREVALO …      NA       NA   2           2  10  
+# ℹ 32 more rows
+# ℹ 5 more variables: inicio_horario &lt;chr&gt;, fin_horario &lt;chr&gt;,
+#   visita_planificada &lt;dttm&gt;, inicio_visita &lt;dttm&gt;, fin_visita &lt;dttm&gt;</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 39 × 2
+   id_orden count
+      &lt;dbl&gt; &lt;int&gt;
+ 1   163957     2
+ 2   167030     1
+ 3   173085     9
+ 4   176714     2
+ 5   176717     1
+ 6   176731     1
+ 7   177884     3
+ 8   177934     2
+ 9   177988     2
+10   178012    10
+# ℹ 29 more rows</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 21 × 4
+   id_orden count na_count count_diff
+      &lt;dbl&gt; &lt;int&gt;    &lt;int&gt;      &lt;int&gt;
+ 1   163957     2        1          1
+ 2   173085     9        1          8
+ 3   176714     2        1          1
+ 4   177884     3        1          2
+ 5   177934     2        1          1
+ 6   177988     2        1          1
+ 7   178012    10        1          9
+ 8   179363     2        1          1
+ 9   179364     2        1          1
+10   180498     2        1          1
+# ℹ 11 more rows</code></pre>
+</div>
+</div>
+<p>Por último creamos algunas nuevas columnas para distintos análisis. Entre estas algunas columnas para facilitar la interacción con fechas y horarios de entregas.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "es_ES.UTF-8"</code></pre>
+</div>
+</div>
+</section>
+<section id="observaciones-y-sugerencias." class="level3" data-number="2.1.2">
+<h3 data-number="2.1.2" class="anchored" data-anchor-id="observaciones-y-sugerencias."><span class="header-section-number">2.1.2</span> Observaciones y sugerencias.</h3>
+<ol type="1">
+<li><p>Un gran porcentaje de las entregas tienen registrado el mismo horario para el inicio y final de la visitas.</p>
+<p>Esto puede deberse a la carga apresurada por parte de los repartidores o a un sistema poco eficiente de carga. Podría solucionarse con mejoras de interfaz o flujo de carga.</p></li>
+</ol>
+</section>
+</section>
+<section id="detección-de-anomalías." class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="detección-de-anomalías."><span class="header-section-number">2.2</span> Detección de anomalías.</h2>
+<p>En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.</p>
+<p>El propósito de esta etapa fue <strong>registrar y documentar</strong> estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.</p>
+<section id="pendiente-centro-de-distribución-en-mendoza." class="level3" data-number="2.2.1">
+<h3 data-number="2.2.1" class="anchored" data-anchor-id="pendiente-centro-de-distribución-en-mendoza."><span class="header-section-number">2.2.1</span> PENDIENTE Centro de distribución en Mendoza.</h3>
+<blockquote class="blockquote">
+<p>mostrar grafico, imagen de google maps y explicación</p>
+</blockquote>
+</section>
+<section id="pendiente-entregas-en-día-domingo." class="level3" data-number="2.2.2">
+<h3 data-number="2.2.2" class="anchored" data-anchor-id="pendiente-entregas-en-día-domingo."><span class="header-section-number">2.2.2</span> PENDIENTE Entregas en día domingo.</h3>
+<blockquote class="blockquote">
+<p>mostrar cantidad de entregas por día, indicar que los domingos no es comun e identificar las entregas co su horario.</p>
+</blockquote>
+</section>
+<section id="pendiente-entregas-consecutivas-inmediatas." class="level3" data-number="2.2.3">
+<h3 data-number="2.2.3" class="anchored" data-anchor-id="pendiente-entregas-consecutivas-inmediatas."><span class="header-section-number">2.2.3</span> PENDIENTE Entregas consecutivas inmediatas.</h3>
+<p>Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.</p>
+<p>Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.</p>
+<p>Horarios cargados de forma incorrecta podrian causar:</p>
+<ol type="1">
+<li>Mala estimación sobre tiempos muertos.</li>
+<li>Dificulta optimizar los procesos de entrega.</li>
+<li>Perjudica la proyección de horarios de entregas o ventanas horarias.</li>
+</ol>
+<p>Algunas sugerencias e ideas para mejorar esto incluyen:</p>
+<ul>
+<li><p>Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.</p></li>
+<li><p>Implementación de un sistema de validación de los datos para evitar duplicados.</p></li>
+<li><p>Desarrollo y uso de hardware específico para la carga de datos.</p></li>
+</ul>
+</section>
+</section>
+<section id="pendiente-vista-general." class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="pendiente-vista-general."><span class="header-section-number">2.3</span> PENDIENTE Vista general.</h2>
+<p>En esta sección ofrecemos una <strong>visión superficial de los datos</strong>, brindando un panorama inicial que permite familiarizarnos con su estructura y contenido.</p>
+<p><img src="images/clipboard-2661057119.png" class="img-fluid"></p>
+<p>Este primer acercamiento busca proporcionar <strong>intuición inicial</strong> sobre los patrones más evidentes y áreas de interés para análisis más profundos.</p>
+<blockquote class="blockquote">
+<p>Cuantas entregas tenemos en total?</p>
+<p>En que plazo estamos hablando, fecha de la primera entrega y la última?</p>
+<p>¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?</p>
+<p>¿Cuál es la distribución de entregas por localidad o región?</p>
+<p>¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?</p>
+<p>¿Existen picos de entregas en ciertos días u horas?</p>
+<p>¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?</p>
+<p>¿Qué clientes generan más volumen de entregas y cuáles presentan más problemas o irregularidades?</p>
+</blockquote>
+</section>
+</section>
+<section id="conclusiones" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Conclusiones</h1>
+</section>
+<section id="apéndice" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Apéndice</h1>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

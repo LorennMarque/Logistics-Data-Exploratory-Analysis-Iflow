@@ -1,0 +1,162 @@
+---
+title: "Marco"
+format: html
+editor: visual
+---
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+library(leaflet)
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(kableExtra)
+library(GGally)
+library(corrplot)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(osmdata)
+library(sf)
+library(ggmap)
+library(MASS)
+
+
+
+```
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+
+iflow <- read.csv('iflow_clean')
+
+df <- iflow %>%
+  mutate(log_duracion_visita_num =log(duracion_visita_min+0.01))
+
+
+```
+
+### Vemos si la cantidad de bultos o unidades esta relacionada con la duracion
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+
+ggplot(df,aes(x=bultos,y=duracion_visita_min))+geom_point(fill = "#272727", color = "#94C11F")
+
+```
+
+Como es dificil de ver si hay relacion o no, utilizamos el logaritmo,
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+
+
+ggplot(df,aes(x=peso,y=log_duracion_visita_num))+geom_point(fill = "#272727", color = "#94C11F")+theme_bw()
+```
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+# Asegurarse de que las variables sean numéricas
+df1<-df %>% filter(duracion_visita_min>0) %>% mutate(log_duracion_visita=log(duracion_visita_min))
+
+
+
+df1$bultos <- as.numeric(df1$bultos)
+df1$peso <- as.numeric(df1$peso)
+df1$unidades <- as.numeric(df1$unidades)
+df1$log_duracion_visita_num <- as.numeric(df1$log_duracion_visita_num)
+
+
+
+```
+
+Lo mismo con el peso
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+ggplot(df,aes(x=bultos,y=log_duracion_visita_num))+geom_point(fill = "#272727", color = "#94C11F") +theme_bw()
+```
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+cor.test(df1$bultos, df1$log_duracion_visita_num, method = "spearman")
+cor.test(df1$peso, df1$log_duracion_visita_num, method = "spearman")
+cor.test(df1$unidades, df1$log_duracion_visita_num, method = "spearman")
+```
+
+por ultimo lo hacemos con las unidades
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+ggplot(df,aes(x=unidades,y=log_duracion_visita_num))+geom_point(fill = "#272727", color = "#94C11F")+theme_bw()
+```
+
+#### por ultimo verificamos su relacion con un testeo de spearman's
+
+Ademas aprovechamos y verificamos relacion alta entre unidades, bultos y peso
+
+```{r collapse=TRUE,warning=FALSE,echo=FALSE}
+
+# Selección de las variables a correlacionar
+cor_vars <- df1[, c("bultos", "peso", "unidades", "log_duracion_visita_num")]
+
+# Calcular la matriz de correlación de Spearman
+cor_matrix <- cor(cor_vars, method = "spearman", use = "complete.obs")
+
+# Mostrar la matriz de correlación
+print(cor_matrix)
+
+# Visualizar la matriz de correlación con un mapa de calor
+corrplot(cor_matrix, method = "color", tl.col = "black", tl.cex = 0.8, 
+         title = "Matriz de Correlación (Spearman)", addCoef.col = "black")
+
+
+```
+
+A pesar de que las correlaciones son bajas, son estadísticamente significativas. Sin embargo, debido a que los coeficientes de correlación no son altos, **no podemos concluir que estas variables tengan un impacto considerable en la duración de la entrega**. La relación es débil, lo que sugiere que hay otros factores importantes que podrían estar influyendo en la duración de las entregas.
+
+```{r}
+
+ggplot(df1,aes(x=unidades,y=log_duracion_visita_num,color=cliente))+geom_point(alpha=0.4,fill = "#272727", color = "#94C11F")+theme_bw()
+```
+
+lo vemos por separado para cada cliente
+
+```{r}
+cliente70<-df1 %>% filter(cliente=="70")
+
+cliente20<-df1 %>% filter(cliente=="20")
+
+
+```
+
+### Cliente 20
+
+```{r}
+corr_matrix_20 <- cliente20 %>%
+  dplyr::select(log_duracion_visita_num, bultos, peso, unidades) %>%
+  cor(use = "complete.obs")
+
+# Mostrar la matriz de correlación
+print(corr_matrix_20)
+
+# Visualizar la matriz de correlación con un mapa de calor
+corrplot(corr_matrix_20, 
+         method = "color",                  # Método de visualización en mapa de calor
+         tl.col = "black",                  # Color de las etiquetas de texto
+         tl.cex = 0.8,                      # Tamaño del texto de las etiquetas
+         title = "Matriz de Correlación",   # Título del gráfico
+         addCoef.col = "black") 
+
+```
+
+### cliente 70
+
+```{r}
+corr_matrix_70 <- cliente70 %>%
+  dplyr::select(log_duracion_visita_num, bultos, peso, unidades) %>%
+  cor(use = "complete.obs")
+
+# Mostrar la matriz de correlación
+print(corr_matrix_70)
+
+# Visualizar la matriz de correlación con un mapa de calor
+corrplot(corr_matrix_70, 
+         method = "color",                  # Método de visualización en mapa de calor
+         tl.col = "black",                  # Color de las etiquetas de texto
+         tl.cex = 0.8,                      # Tamaño del texto de las etiquetas
+         title = "Matriz de Correlación (cliente20)",  # Título del gráfico
+         addCoef.col = "black") 
+```

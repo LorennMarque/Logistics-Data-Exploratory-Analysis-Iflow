@@ -15,7 +15,7 @@ library(geosphere)
 library(igraph)
 
 # Cargar datos
-data <- read.csv("iflow_clean.csv")
+data <- read.csv("data/clean_iflow_data.csv")
 ```
 
 ## Primeras entregas de cada día
