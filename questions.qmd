@@ -9,5 +9,5 @@ data <- read.csv("iflow_clean.csv")
 ```
 
 ```{r}
-head(data)
+head(data, 4)
 ```

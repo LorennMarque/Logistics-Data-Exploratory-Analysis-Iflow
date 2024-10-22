@@ -10,6 +10,13 @@ data <- read.csv("iflow_clean.csv")
 head(data)
 ```
 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(viridis)
+```
+
 # Patrones en las entregas.
 
 > ## "El lunes es tan parecido con el jueves como el martes con el viernes y el miercoles con el sabado"
@@ -255,6 +262,7 @@ print(cluster_plot)
 ```
 
 ```{r}
+library(leaflet)
 # Visualizar los clusters en un mapa interactivo con leaflet
 palette <- colorFactor(palette = "Set1", domain = buenos_aires_data$cluster)
 
@@ -574,35 +582,59 @@ data <- data %>%
 entregas_fecha <- data %>%
   filter(as.Date(fin_visita) == fecha_seleccionada) %>%
   arrange(fin_visita) %>%
-  slice(1:n_entregas) %>%  # Limitar a las primeras N entregas
-  mutate(orden = row_number())  # Agregar el orden de entrega
+  slice(1:n_entregas) %>%
+  mutate(
+    orden = row_number(),  # Agregar el orden de entrega
+    tiempo_transcurrido = c(NA, diff(fin_visita) / 60)  # Calcular minutos entre entregas
+  )
+
+# Crear la paleta de colores basada en el valor del cliente
+paleta_colores <- colorFactor(
+  palette = c("red", "green"),  # Asignar colores específicos
+  domain = entregas_fecha$cliente  # Basado en los valores de la columna cliente
+)
+
+# Crear etiquetas de tiempo entre entregas para colocarlas en las líneas
+etiquetas_lineas <- entregas_fecha %>%
+  filter(!is.na(tiempo_transcurrido)) %>%  # Excluir la primera entrega (sin tiempo anterior)
+  mutate(
+    lat_medio = (latitud + lag(latitud)) / 2,
+    lng_medio = (longitud + lag(longitud)) / 2,
+    etiqueta_tiempo = paste0(round(tiempo_transcurrido, 2), " min")
+  ) %>%
+  na.omit()  # Remover filas con NA (la primera fila)
 
 # Crear el mapa interactivo con Leaflet
 mapa_leaflet <- leaflet(data = entregas_fecha) %>%
   addTiles() %>%
-  # Agregar puntos con el número de orden como etiqueta personalizada y hora al hacer hover
+  # Agregar puntos con colores basados en el cliente y etiquetas personalizadas
   addCircleMarkers(
     ~longitud, ~latitud,
-    radius = 5,
+    radius = 8,
     color = "black",
-    fillColor = "white",
-    fillOpacity = 1,
+    fillColor = ~paleta_colores(cliente),
+    fillOpacity = 0.8,
     label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
     labelOptions = labelOptions(
       noHide = TRUE, 
       direction = "center", 
       textOnly = TRUE,
       style = list(
-        "font-size" = "18px",  # Agrandar el texto
-        "font-weight" = "bold", 
-        "background-color" = "rgba(255, 255, 255, 0.7)", 
-        "border" = "1px solid black", 
-        "border-radius" = "100%", 
-        "padding" = "2px"
+        "font-size" = "13px",
+        "font-weight" = "bold",
+        "color" = "white",
+        "border-radius" = "100%",
+        "padding" = "12px"
       )
     ),
-    # Mostrar la hora exacta como tooltip al hacer hover
-    popup = ~paste("Hora de Entrega:", format(fin_visita, "%H:%M:%S"))
+    # Mostrar la hora exacta y tiempo transcurrido como popup
+    popup = ~paste(
+      "Hora de Entrega:", format(fin_visita, "%H:%M:%S"),
+      "<br>Cliente:", cliente,
+      "<br>Tiempo desde la última entrega:", 
+      ifelse(is.na(tiempo_transcurrido), "N/A", 
+             paste(round(tiempo_transcurrido, 2), "min"))
+    )
   ) %>%
   # Agregar líneas que conecten las entregas en orden
   addPolylines(
@@ -610,203 +642,260 @@ mapa_leaflet <- leaflet(data = entregas_fecha) %>%
     data = entregas_fecha,
     color = "blue", weight = 2
   ) %>%
+  # Agregar etiquetas sobre las líneas con tiempo transcurrido
+  addLabelOnlyMarkers(
+    lng = ~lng_medio, lat = ~lat_medio,
+    label = ~etiqueta_tiempo,
+    data = etiquetas_lineas,
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "top", 
+      style = list(
+        "font-size" = "10px",
+        "font-weight" = "bold",
+        "color" = "blue"
+      )
+    )
+  ) %>%
+  # Agregar una leyenda para los clientes
   addLegend(
     "bottomright", 
-    colors = "black", 
-    labels = paste("Recorrido del", as.character(fecha_seleccionada)), 
-    title = "Leyenda"
+    pal = paleta_colores, 
+    values = ~cliente, 
+    title = "Cliente", 
+    opacity = 1
   )
 
 # Mostrar el mapa
 mapa_leaflet
-
-
 
 ```
 
-Este es un día de ejemplo. El orden de entrega tiene sentido para un camion y revisando los horarios tienen sentido con las distancias
-
-Lo interesante de esto esta aca. El recorrido diario viene en un orden natural hasta que encontramos un salto enorme.
-
-Entre la entrega 15 y la 16 hay unos 30 segundos de diferencia.
+## DBSCAN clustering
 
 ```{r}
-# Cargar librerías necesarias
-library(dplyr)
+# Instalar paquetes necesarios (si no están instalados)
+if (!requireNamespace("dbscan", quietly = TRUE)) install.packages("dbscan")
+if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
+if (!requireNamespace("leaflet", quietly = TRUE)) install.packages("leaflet")
+
+# Cargar los paquetes
+library(dbscan)
+library(lubridate)
 library(leaflet)
-library(geosphere)  # Para cálculos geoespaciales
 
-# Asegurar que la columna fin_visita esté en formato POSIXct
-data <- data %>%
-  mutate(
-    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
-  )
+# Parámetro: Número de entregas que queremos tomar
+N_entregas <- 20  # Cambia este valor según tus necesidades
 
-# Definir el número de entregas a mostrar por día (N)
-N <- 4  # Ajusta este número según tus necesidades
+# Ver las primeras filas para revisar la estructura de los datos
+head(data)
 
-# Encontrar las primeras N entregas de cada día
-entregas_dia <- data %>%
-  mutate(fecha = as.Date(fin_visita)) %>%
-  group_by(fecha) %>%
-  arrange(fin_visita) %>%
-  slice(1:N) %>%  # Seleccionar las primeras N entregas
-  mutate(tipo = case_when(
-    row_number() == 1 ~ "Primera Entrega",
-    row_number() == 2 ~ "Segunda Entrega",
-    TRUE ~ "Resto"
-  )) %>%
-  ungroup()
+# Convertir 'fin_visita' a formato datetime
+data$fin_visita <- ymd_hms(data$fin_visita)
 
-# Crear el mapa interactivo
-mapa_leaflet <- leaflet() %>%
-  addTiles()
+# Filtrar los datos para el día 2024-05-23
+data_filtrado <- data[as.Date(data$fin_visita) == as.Date("2024-05-23"), ]
 
-# Dibujar un polígono envolvente para cada día
-fechas_unicas <- unique(entregas_dia$fecha)
+# Ordenar las entregas por el tiempo de 'fin_visita'
+data_filtrado <- data_filtrado[order(data_filtrado$fin_visita), ]
 
-for (fecha in fechas_unicas) {
-  # Filtrar las entregas de la fecha actual
-  puntos <- entregas_dia %>% filter(fecha == !!fecha)
-  
-  # Obtener los índices del convex hull (envolvente convexa)
-  hull_indices <- chull(puntos$longitud, puntos$latitud)
-  
-  # Crear un polígono con los puntos del hull en orden
-  hull_coords <- puntos[hull_indices, c("longitud", "latitud")]
-  hull_coords <- rbind(hull_coords, hull_coords[1, ])  # Cerrar el polígono
-  
-  # Agregar el polígono al mapa
-  mapa_leaflet <- mapa_leaflet %>%
-    addPolygons(
-      lng = hull_coords$longitud,
-      lat = hull_coords$latitud,
-      color = "gray",
-      weight = 2,
-      opacity = 0.5,
-      fillOpacity = 0.1,
-      popup = paste("Fecha:", fecha)
-    )
-}
+# Tomar solo las primeras N entregas
+data_filtrado <- head(data_filtrado, N_entregas)
 
-# Agregar marcadores por tipo de entrega
-mapa_leaflet <- mapa_leaflet %>%
+# Crear una columna de tiempo en segundos desde la medianoche
+data_filtrado$hora_segundos <- as.numeric(difftime(data_filtrado$fin_visita, 
+                                                   floor_date(data_filtrado$fin_visita, "day"), 
+                                                   units = "secs"))
+
+# Verificar si hay valores NA en las columnas clave
+print(colSums(is.na(data_filtrado[, c("latitud", "longitud", "hora_segundos")])))
+
+# Eliminar filas con valores NA
+data_clean <- na.omit(data_filtrado)
+
+# Seleccionar las columnas necesarias para el clustering
+X <- data_clean[, c("latitud", "longitud", "hora_segundos","cliente")]
+
+# Escalar las variables
+X_scaled <- scale(X)
+
+# Ajustar los parámetros de DBSCAN
+eps_value <- 1.6  # Ajustar según la dispersión de tus datos
+minPts_value <- 10  # Mínimo de puntos para formar un cluster
+
+# Aplicar DBSCAN
+clustering <- dbscan(X_scaled, eps = eps_value, minPts = minPts_value)
+
+# Añadir los resultados del cluster a los datos originales
+data_clean$cluster <- as.factor(clustering$cluster)
+
+# Crear una paleta de colores para los clusters
+paleta_colores <- colorFactor(
+  palette = rainbow(length(unique(data_clean$cluster))),
+  domain = data_clean$cluster
+)
+
+# Ver los resultados del clustering
+print(table(data_clean$cluster))
+
+# Crear un mapa interactivo usando leaflet
+leaflet(data_clean) %>%
+  addTiles() %>%  # Añade el mapa base
   addCircleMarkers(
-    data = entregas_dia %>% filter(tipo == "Primera Entrega"),
-    ~longitud, ~latitud,
-    radius = 5,
-    color = "blue",
-    fillOpacity = 0.8,
-    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
-  ) %>%
-  addCircleMarkers(
-    data = entregas_dia %>% filter(tipo == "Segunda Entrega"),
-    ~longitud, ~latitud,
-    radius = 5,
-    color = "red",
-    fillOpacity = 0.8,
-    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
-  ) %>%
-  addCircleMarkers(
-    data = entregas_dia %>% filter(tipo == "Resto"),
-    ~longitud, ~latitud,
-    radius = 5,
-    color = "black",
-    fillOpacity = 0.8,
-    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+    ~longitud, ~latitud,  # Coordenadas
+    color = ~paleta_colores(cluster),  # Aplicar la paleta de colores según el cluster
+    radius = 5,  # Tamaño del marcador
+    stroke = FALSE, fillOpacity = 0.7,  # Opciones estéticas
+    popup = ~paste("Cliente:", cliente, "<br>",
+                   "Cluster:", cluster, "<br>",
+                   "Hora de entrega:", fin_visita)  # Información en popup
   ) %>%
   addLegend(
     "bottomright", 
-    colors = c("blue", "red", "black"), 
-    labels = c("Primera Entrega", "Segunda Entrega", "Resto"), 
-    title = "Leyenda"
+    pal = paleta_colores,
+    values = ~cluster,
+    title = "Cluster",
+    opacity = 1
   )
 
-# Mostrar el mapa
-mapa_leaflet
+```
 
+### Para identificar un EPS ideal para nuestro clustering.
+
+```{r}
+# Calcular las distancias al vecino más cercano para determinar el eps adecuado
+library(ggplot2)
+
+# Calcular la matriz de distancias con kNN (k=2 para el vecino más cercano)
+kNNdist <- kNNdist(X_scaled, k = 2)
+
+# Graficar las distancias al vecino más cercano para encontrar el codo
+kNNdistplot(X_scaled, k = 2)
+abline(h = 0.2, col = "red", lty = 2)  # Ajustar este valor según el gráfico
+```
+
+```{r}
+# Cargar los paquetes
+library(dbscan)
+library(geosphere)
+library(dplyr)
+library(leaflet)
+
+# Tus datos originales en 'buenos_aires_data'
+entregas <- data_filtrado
+
+# 1. Limitar a N entregas (por ejemplo, N = 100)
+N <- 20  # Cambia este valor si es necesario
+entregas <- entregas %>% slice(1:N)
 
 ```
 
 ```{r}
-# Cargar librerías necesarias
-library(dplyr)
-library(leaflet)
-
-# Asegurar que la columna fin_visita esté en formato POSIXct
-data <- data %>%
-  mutate(
-    fin_visita = as.POSIXct(fin_visita, format = "%Y-%m-%d %H:%M:%S")
-  )
-
-# Extraer la primera y última entrega de cada día
-entregas_resumen <- data %>%
-  mutate(fecha = as.Date(fin_visita)) %>%
-  group_by(fecha) %>%
-  arrange(fin_visita) %>%
-  summarise(
-    primera_entrega = first(fin_visita),
-    lat_primera = first(latitud),
-    lon_primera = first(longitud),
-    ultima_entrega = last(fin_visita),
-    lat_ultima = last(latitud),
-    lon_ultima = last(longitud)
-  ) %>%
-  ungroup()
-
-# Crear un dataframe para los pares conectados (última entrega del día anterior con primera del actual)
-pares <- entregas_resumen %>%
-  mutate(
-    fecha_anterior = lag(fecha),
-    lat_ultima_anterior = lag(lat_ultima),
-    lon_ultima_anterior = lag(lon_ultima)
-  ) %>%
-  filter(!is.na(fecha_anterior))  # Eliminar el primer día, ya que no tiene día anterior
-
-# Crear el mapa interactivo
-mapa_leaflet <- leaflet() %>%
-  addTiles()
-
-# Agregar líneas entre la última entrega del día anterior y la primera entrega del día siguiente
-for (i in 1:nrow(pares)) {
-  mapa_leaflet <- mapa_leaflet %>%
-    addPolylines(
-      lng = c(pares$lon_ultima_anterior[i], pares$lon_primera[i]),
-      lat = c(pares$lat_ultima_anterior[i], pares$lat_primera[i]),
-      color = "gray",
-      weight = 2,
-      opacity = 0.5
-    )
+clasificar_entregas <- function(datos, max_dist_km, min_tiempo_por_km) {
+  resultados <- datos %>%
+    group_by(cliente) %>%
+    arrange(fin_visita) %>%
+    mutate(
+      dist_km = c(0, distHaversine(cbind(longitud[-n()], latitud[-n()]),
+                                   cbind(longitud[-1], latitud[-1])) / 1000),
+      tiempo_min = c(0, difftime(fin_visita[-1], fin_visita[-n()], units = "mins")),
+      nuevo_repartidor = (dist_km > max_dist_km) | (tiempo_min < dist_km * min_tiempo_por_km),
+      grupo = cumsum(nuevo_repartidor)
+    ) %>%
+    ungroup()
+  return(resultados)
 }
 
-# Agregar marcadores para la primera entrega de cada día
-mapa_leaflet <- mapa_leaflet %>%
+```
+
+```{r}
+# Instalar el paquete 'progress' si no lo tienes
+if (!requireNamespace("progress", quietly = TRUE)) install.packages("progress")
+
+# Cargar los paquetes necesarios
+library(progress)
+library(dplyr)
+
+# Rango ampliado de parámetros
+max_distancias <- seq(1, 160, by = 2)     # Ej: 1, 3, 5, ..., 159 km
+min_tiempos <- seq(1, 120, by = 1)        # Ej: 1, 2, ..., 120 min/km
+
+# Generar todas las combinaciones posibles
+resultados_grid <- expand.grid(max_dist_km = max_distancias, min_tiempo_por_km = min_tiempos)
+
+# Inicializar la barra de progreso
+total_combinaciones <- nrow(resultados_grid)
+pb <- progress_bar$new(
+  format = "Evaluando [:bar] :percent en :elapsed, quedan :eta",
+  total = total_combinaciones, clear = FALSE, width = 60
+)
+
+# Inicializamos una variable para almacenar la mejor combinación
+mejor_resultado <- NULL
+
+# Bucle para evaluar cada combinación hasta encontrar 2 grupos
+for (i in seq_len(total_combinaciones)) {
+  # Obtener los parámetros actuales
+  dist <- resultados_grid$max_dist_km[i]
+  tiempo <- resultados_grid$min_tiempo_por_km[i]
+  
+  # Actualizar la barra de progreso
+  pb$tick()
+  
+  # Ejecutar la clasificación con los parámetros actuales
+  resultados <- clasificar_entregas(entregas, dist, tiempo)
+  num_grupos <- evaluar_modelo(resultados)  # Número de grupos generados
+  
+  # Verificar si encontramos exactamente 2 grupos
+  if (num_grupos == 2) {
+    mejor_resultado <- data.frame(max_dist_km = dist, min_tiempo_por_km = tiempo, evaluacion = num_grupos)
+    break  # Detener la búsqueda
+  }
+}
+
+# Mostrar la mejor combinación encontrada
+if (!is.null(mejor_resultado)) {
+  print("¡Combinación encontrada que genera 2 grupos!")
+  print(mejor_resultado)
+} else {
+  print("No se encontró ninguna combinación que genere exactamente 2 grupos.")
+}
+
+```
+
+```{r}
+ leaflet(entregas) %>%
+    addTiles() %>%  # Añadir mapa base
+    addCircleMarkers(
+      ~longitud, ~latitud,
+      radius = 5, color = "blue", stroke = FALSE, fillOpacity = 0.7,
+      label = ~paste("Cliente:", cliente, "<br>Hora:", fin_visita)
+    ) %>%
+    addLegend("topright", colors = "blue", labels = "Entregas", opacity = 1)
+```
+
+```{r}
+
+resultados <- clasificar_entregas(entregas,max_dist_km = 3, min_tiempo_por_km = 1)
+
+# Crear una paleta de colores para los grupos
+num_grupos <- length(unique(resultados$grupo))
+palette <- colorFactor(topo.colors(num_grupos), resultados$grupo)
+
+# Visualización en un mapa interactivo con leaflet
+leaflet(resultados) %>%
+  addTiles() %>%
   addCircleMarkers(
-    data = entregas_resumen,
-    ~lon_primera, ~lat_primera,
-    radius = 6,
-    color = "blue",
-    fillOpacity = 0.8,
-    popup = ~paste("Fecha:", fecha, "<br>Primera Entrega:", primera_entrega)
-  ) %>%
-  # Agregar marcadores para la última entrega de cada día
-  addCircleMarkers(
-    data = entregas_resumen,
-    ~lon_ultima, ~lat_ultima,
-    radius = 6,
-    color = "red",
-    fillOpacity = 0.8,
-    popup = ~paste("Fecha:", fecha, "<br>Última Entrega:", ultima_entrega)
-  ) %>%
-  # Agregar una leyenda
-  addLegend(
-    "bottomright",
-    colors = c("blue", "red", "gray"),
-    labels = c("Primera Entrega", "Última Entrega", "Conexión Entre Días"),
-    title = "Leyenda"
+    ~longitud, ~latitud,
+    color = ~palette(grupo),
+    radius = 5,
+    stroke = FALSE, fillOpacity = 1,
+    label = ~paste("Cliente:", cliente, "<br>Grupo:", grupo, "<br>Hora:", fin_visita)
   )
+```
 
-# Mostrar el mapa
-mapa_leaflet
+------------------------------------------------------------------------
 
+```{r}
+library(h3)
 ```
