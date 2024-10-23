@@ -298,7 +298,7 @@ fig
 
 ```
 
-##  🖼️ Screenshot
+## 🖼️ Screenshot
 
 ![](images/screen.png)
 :::
@@ -602,7 +602,216 @@ heatmap_plot
 :::
 
 > ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
->
+
+```{r, warning=FALSE, echo=FALSE}
+
+head(data)
+
+# dim(data %>% filter(inicio_visita != fin_visita)) # 17142
+
+# data %>% filter(inicio_visita == fin_visita) # 10255
+
+# Calcular los totales y proporciones
+total <- nrow(data) # Total de filas
+dif_visit <- nrow(data %>% filter(inicio_visita != fin_visita)) # 17142 filas diferentes
+igual_visit <- nrow(data %>% filter(inicio_visita == fin_visita)) # Filas iguales
+
+# Crear un dataframe con los resultados
+resumen <- data.frame(
+  Categoria = c("Inicio ≠ Fin", "Inicio = Fin"),
+  Conteo = c(dif_visit, igual_visit)
+)
+
+# Calcular el porcentaje para cada categoría
+resumen$Porcentaje <- round((resumen$Conteo / total) * 100, 2)
+
+# Crear el gráfico de barras
+ggplot(resumen, aes(x = Categoria, y = Conteo, fill = Categoria)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(Porcentaje, "%")), 
+            vjust = -0.5, size = 5) +  # Etiquetas con porcentaje arriba de las barras
+  labs(title = "Comparación de visitas", 
+       x = "Categoría", 
+       y = "Cantidad de visitas") +
+  theme_minimal()
+
+
+```
+
+Bien cargados 17142 vs mal cargados 10255 mal. Pero estimamos que son incluso más
+
+```{r, warning=FALSE, echo=FALSE, output=FALSE}
+# Ordenar los datos cronológicamente (asumo que tienes una columna de timestamp)
+data_ordenada <- data %>%
+  arrange(inicio_visita)
+
+# Crear una columna que identifique si el fin_visita es igual al de la fila anterior
+data_secuencia <- data_ordenada %>%
+  mutate(
+    consecutivo = (fin_visita == lag(fin_visita, default = first(fin_visita)))
+  )
+
+# Crear un identificador para cada grupo consecutivo con el mismo fin_visita
+data_secuencia <- data_secuencia %>%
+  mutate(
+    grupo = cumsum(!consecutivo)  # Incrementar grupo cuando cambia fin_visita
+  )
+
+# Resumir el número de filas en cada grupo consecutivo
+resumen_secuencias <- data_secuencia %>%
+  group_by(fin_visita, grupo) %>%
+  summarise(cantidad = n(), .groups = "drop")
+
+# Mostrar las secuencias más largas
+resumen_secuencias %>%
+  arrange(desc(cantidad))
+
+filtered_amounts <- resumen_secuencias %>% filter(cantidad != 1)
+```
+
+Como referencia, el día 2024-06-27 16:06:00 hay 23 entregas graficadas el mismo día.
+
+::: panel-tabset
+## Ejemplo 50 entregas
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-12 16:12:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+
+## Ejemplo 23 entregas
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-27 16:06:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+:::
+
+¿Que tan frecuente es este error? Muy frecuentes
+
+```{r, warning=FALSE, echo=FALSE}
+# Asegurarse de que no haya NAs en la columna 'cantidad'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(cantidad), cantidad != 1)
+
+# Crear la columna 'categoria' con las condiciones bien definidas
+resumen_secuencias <- resumen_secuencias %>%
+  mutate(
+    categoria = case_when(
+      cantidad == 2 ~ "2",
+      cantidad >= 3 & cantidad <= 5 ~ "De 3 a 5",
+      cantidad >= 6 & cantidad <= 10 ~ "De 6 a 10",
+      cantidad >= 11 & cantidad <= 20 ~ "De 11 a 20",
+      cantidad > 20 ~ "Más de 20"
+    )
+  )
+
+# Verificar si hay NAs en la columna 'categoria'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(categoria))
+
+# Crear el gráfico de barras con las categorías corregidas
+ggplot(resumen_secuencias, aes(x = categoria)) +
+  geom_bar(fill = "#94C11F", color = "black", alpha = 0.8) +
+  labs(
+    title = "Distribución de Secuencias por Categoría",
+    x = "Categoría de cantidad",
+    y = "Frecuencia"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
+
+```
+
+#### Conclusiones:
+
+Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
+
+Al desconfiar del 46.67% de los datos es dificil y poco preciso cualquier tipo de analisis sobre la eficiencia operativa de las entregas. Esto puede traer posibles problemas como:
+
+1.  Problema 1
+2.  Problema 2
+
+Solucionar esta situacion representa una gran oportunidad y facilitaria exponencialmente el crecimiento de la empresa, precision de las ventanas de entrega, identificación de cuellos de botella reales y a final de cuentas la toma de decisiones operativas.
+
+> "Lo que no se mide, no se puede mejorar." - Peter F. Drucker
+
+A continuación listamos algunos posibles motivos y oportunidades para corregir la situación.
+
+1.  Manual de uso y capacitación sobre el sistema [UNIGIS](https://www.unigis.com/ "Sitio web oficial de Unigis")
+
+Basandonos en el [Manual de transportistas - Elementos de seguridad y APPS](https://transportes.iflow21.com/portal/es/kb/articles/manual-de-transportistas-elementos-de-seguridad-y-apps) encontramos la siguiente referencia sobre el uso de la aplicación.
+
+![](images/user_manual.png)
+
+Capacitar mejor al personal con mayor cantidad de recursos, claridad en los instructivos y videos demostrando el uso correcto del sistema [videos demostrando el uso correcto del sistema](https://www.youtube.com/watch?v=JnEHVHhs6V4 "Video grabado por Corporación Aceros Arequipa para su equipo") mejoraría la precision de la carga de los datos en el futuro.
+
+2.  Creación de una interfaz personalizada para Unigis.
+
+El error de carga de horarios iguales en entregas consecutivas puede deberse principalmente a la dificultad de uso del sistema o poca practicidad del mismo por la que los transportistas podrían saltear los pasos del instructivo.
+
+Si migrar a un nuevo sistema más moderno es una alternativa muy costosa podrían considerar hacer una inversión en desarrollo frontend para, utilizando la API del sistema actual, puedan tener una interfaz más amena a los transportistas.
+
+[![Referencia del Uso de la API cloud de Unigis](images/postman_reference.png)](https://www.postman.com/irampoldi/unigis/request/8833s18/reportedeviajes)
+
+El desarrollo de una interfaz personalizada para interactuar con su sistema actual podría ser una inversión considerable pero economica contrastando con la posibilidad de un desarrollo personalizado o la migración a un nuevo sistema.
+
+Algunas consideraciones:
+
+-   Inversión en equipo e investigación UX para asegurar el uso intuitivo de los transportistas. Es importante entender como es el uso del sistema en la practica.
+
+3.  Migrar a un sistema más moderno o diseñar uno a medida para sus necesidades.
+
+    Puede ser la opción mas costosa.
+
+```{r}
+data %>% filter(fin_visita == "2024-05-18 11:14:26")
+```
+
 > ¿Existen picos de entregas en ciertos días u horas?
 >
 > ¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?
