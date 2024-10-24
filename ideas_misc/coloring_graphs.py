@@ -20,7 +20,7 @@ def haversine(lon1, lat1, lon2, lat2):
     return c * r
 
 # Leer los datos del archivo CSV
-df = pd.read_csv('iflow_clean.csv')
+df = pd.read_csv('data/clean_iflow_data.csv')
 
 # Mantener una copia de las fechas originales
 df['fin_visita_original'] = df['fin_visita']
