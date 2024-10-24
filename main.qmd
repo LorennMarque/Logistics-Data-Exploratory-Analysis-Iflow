@@ -25,6 +25,8 @@ library(viridis)
 library(tseries)
 library(forecast)
 
+# Clustering
+library(factoextra)
 
 # Claves de APIs
 mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
@@ -948,7 +950,7 @@ barchart_cliente <- data %>%
 print(barchart_cliente)
 ```
 
-> Identificar entregas recurrentes a domicilios, zonas de entregas.
+> Identificar entregas recurrentes a domicilios,
 
 ```{r, warning=FALSE, echo=FALSE}
 # Agrupar y contar la cantidad de entregas por cliente y día de la semana
@@ -1019,6 +1021,174 @@ ggplot(frecuencias, aes(x = has_many, y = n)) +
 :::
 
 > ¿Qué porcentaje de entregas se concentra en las localidades más activas?
+>
+> > zonas de entregas.
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar los datos de Buenos Aires
+buenos_aires_data <- data %>%
+  filter(latitud >= -35.2, latitud <= -34.3,
+         longitud >= -58.8, longitud <= -57.9)
+
+# Extraer las coordenadas
+coords <- buenos_aires_data %>%
+  dplyr::select(latitud, longitud)
+
+# Método del codo para determinar el número óptimo de clusters
+set.seed(123)
+wss_values <- sapply(1:10, function(k) {
+  kmeans(coords, centers = k, nstart = 10)$tot.withinss
+})
+
+# Graficar el método del codo con ggplot2
+elbow_plot <- data.frame(K = 1:10, WSS = wss_values) %>%
+  ggplot(aes(x = K, y = WSS)) +
+  geom_point() +
+  geom_line() +
+  geom_vline(xintercept = 4, linetype = "dashed", color = "red") +
+  annotate("text", x = 4.2, y = wss_values[4] + 10, 
+           label = "Elección óptima de K", color = "red", hjust = 0) +
+  labs(title = "Método del codo para determinar K óptimo",
+       x = "Número de Clusters K",
+       y = "Suma de cuadrados dentro del cluster (WSS)") +
+  theme_minimal()
+
+# Aplicar K-means con K = 4
+set.seed(123)
+kmeans_result <- kmeans(coords, centers = 4, nstart = 10)
+
+# Agregar los clusters al DataFrame original
+buenos_aires_data <- buenos_aires_data %>%
+  mutate(cluster = as.factor(kmeans_result$cluster))
+
+```
+
+::: panel-tabset
+## Resultado
+
+```{r, warning=FALSE, echo=FALSE}
+# Visualizar los clusters en un mapa interactivo con leaflet
+palette <- colorFactor(palette = "Set1", domain = buenos_aires_data$cluster)
+
+leaflet(data = buenos_aires_data) %>%
+  addTiles() %>%
+  addCircleMarkers(~longitud, ~latitud, 
+                   color = ~palette(cluster), 
+                   radius = 2, fillOpacity = 0.8, 
+                   popup = ~paste("Cluster:", cluster)) %>%
+  addLegend("bottomright", pal = palette, values = ~cluster,
+            title = "Clusters", opacity = 0.2)
+```
+
+## Elbow
+
+```{r, warning=FALSE, echo=FALSE}
+print(elbow_plot)
+```
+:::
+
+::: panel-tabset
+## Entregas por zona
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por cluster y ordenarlos de mayor a menor
+cluster_counts <- buenos_aires_data %>%
+  group_by(cluster) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+# Graficar el bar chart de cantidad de entregas por cluster con etiquetas
+ggplot(cluster_counts, aes(x = reorder(cluster, -count), y = count, fill = cluster)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = count), vjust = -0.5, size = 5) +
+  labs(title = "Cantidad de entregas por cluster",
+       x = "Cluster",
+       y = "Cantidad de entregas") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, max(cluster_counts$count) * 1.1)  # Aumenta el límite superior del eje y
+```
+
+## Cobertura
+
+```{r, warning=FALSE, echo=FALSE}
+# Convertir el DataFrame a un objeto espacial sf
+buenos_aires_sf <- buenos_aires_data %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)
+
+# Calcular el envolvente convexo (convex hull) para cada cluster
+clusters_hulls <- buenos_aires_sf %>%
+  group_by(cluster) %>%
+  summarise(geometry = st_combine(geometry)) %>%  # Combina las geometrías de cada cluster
+  st_convex_hull()  # Calcula el envolvente convexo
+
+# Calcular el número de puntos en cada cluster
+cluster_counts <- buenos_aires_data %>%
+  group_by(cluster) %>%
+  summarise(count = n())
+
+# Unir los conteos con los envolventes convexos
+clusters_hulls <- clusters_hulls %>%
+  left_join(cluster_counts, by = "cluster")
+
+# Obtener el centroide de cada polígono de cluster para posicionar las etiquetas
+clusters_hulls_centroids <- st_centroid(clusters_hulls)
+
+# Graficar
+ggplot() +
+  # Graficar los envolventes convexos
+  geom_sf(data = clusters_hulls, aes(fill = cluster), alpha = 0.3, color = NA) +
+  # Graficar los puntos de datos
+  geom_sf(data = buenos_aires_sf, aes(color = cluster), size = 0.5) +
+  # Agregar etiquetas con el número de puntos en cada cluster
+  geom_text(data = clusters_hulls_centroids,
+            aes(x = st_coordinates(geometry)[,1],
+                y = st_coordinates(geometry)[,2],
+                label = count),
+            size = 5, color = "black") +
+  labs(title = "Áreas cubiertas por cada cluster en Buenos Aires",
+       fill = "Cluster",
+       color = "Cluster") +
+  theme_minimal() +
+  coord_sf()
+
+```
+:::
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por dia_str y por cluster
+deliveries_per_day_cluster <- buenos_aires_data %>%
+  group_by(cluster, dia_str) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Graficar el bar chart de cantidad de entregas por dia_str y por cluster
+ggplot(deliveries_per_day_cluster, aes(x = dia_str, y = count, fill = cluster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Cantidad de entregas por día y por cluster",
+       x = "Día",
+       y = "Cantidad de entregas",
+       fill = "Cluster") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por cluster y por cliente
+deliveries_per_cluster_cliente <- buenos_aires_data %>%
+  group_by(cluster, cliente) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Graficar el bar chart de cantidad de entregas por cluster y por cliente
+ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor(cliente))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Cantidad de entregas por cluster y por cliente",
+       x = "Cluster",
+       y = "Cantidad de entregas",
+       fill = "Cliente") +
+  theme_minimal()
+```
 
 ### PENDIENTE Estacionalidad y temporalidad.
 
@@ -1682,3 +1852,7 @@ Esta estimación nos presenta algunas preguntas sobre factores de las entregas.
 <https://www.youtube.com/watch?v=V8eXoIFcMgM>
 
 Incluir enlace interno para versión del trabajo con el codigo y comentarios.
+
+Incluir el enlace al repositorio de Github
+
+Referencias de estudio sobre Lastmile logistics, ETL in logistics y clustering geoespacial DBSCAN, H3 oreilly
