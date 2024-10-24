@@ -21,6 +21,11 @@ library(inspectdf)
 library(plotly)
 library(viridis)
 
+# Análisis de series temporales
+library(tseries)
+library(forecast)
+
+
 # Claves de APIs
 mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
 
@@ -808,34 +813,287 @@ Algunas consideraciones:
 
     Puede ser la opción mas costosa.
 
-```{r}
-data %>% filter(fin_visita == "2024-05-18 11:14:26")
+> ¿Existen picos de entregas en ciertos días u horas?
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar los datos por día y hora para contar ocurrencias
+resumen <- data %>%
+  group_by(dia_str, hora) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+# Asegurar el orden correcto de los días (Lunes a Domingo)
+resumen$dia_str <- factor(resumen$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", 
+                                      "jueves", "viernes", "sábado", "domingo"))
+
+resumen <- resumen %>% filter(!is.na(dia_str), dia_str != "domingo")
+
+
+ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis(option = "C", direction = 1) +
+  labs(title = "Entregas por día y hora", 
+       x = "Hora del día", 
+       y = "Día de la semana", 
+       fill = "Cantidad") +
+  theme_minimal()
 ```
 
-> ¿Existen picos de entregas en ciertos días u horas?
->
 > ¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?
->
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear una nueva columna que clasifique si llegó tarde o temprano
+data <- data %>%
+  mutate(estado_entrega = ifelse(diferencia_minutos > 0, "Tarde", "Temprano o a Tiempo"))
+
+# Agrupar los datos por mes y estado de entrega
+data_agrupada <- data %>%
+  group_by(mes, estado_entrega) %>%
+  summarise(cantidad = n())
+
+# Graficar con ggplot
+ggplot(data_agrupada, aes(x = mes, y = cantidad, fill = estado_entrega)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Cantidad de Entregas por Mes",
+    x = "Mes",
+    y = "Cantidad de Entregas",
+    fill = "Estado de Entrega"
+  ) +
+  theme_minimal()
+```
+
 > ¿Qué clientes generan más volumen de entregas y cuáles presentan más problemas o irregularidades?
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear el mapa con plotly y mapbox
+fig <- plot_ly(
+  data = data,
+  lat = ~latitud,
+  lon = ~longitud,
+  color = ~factor(cliente),  # Colorear según cliente
+  colors = c("dodgerblue", "tomato"),  # Colores personalizados para cada cliente
+  type = 'scattermapbox', 
+  mode = 'markers',
+  marker = list(
+    size = 10,  # Tamaño del marcador
+    opacity = 0.2  # Ajustar transparencia (alpha)
+  ),
+  text = ~paste(
+    "Latitud: ", latitud, "<br>",
+    "Longitud: ", longitud, "<br>",
+    "Cliente: ", cliente, "<br>",
+    "ID Orden: ", id_orden, "<br>",
+    "Fecha: ", fin_visita
+  ),  # Información a mostrar en hover
+  hoverinfo = 'text'  # Mostrar solo el texto personalizado
+)
+
+# Configuración del mapa centrado en Buenos Aires
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'open-street-map',  # Estilo del mapa
+      zoom = 10,  # Ajuste del nivel de zoom para Buenos Aires
+      center = list(lat = -34.6037, lon = -58.3816)  # Centrar en Buenos Aires
+    ),
+    title = "Mapa de Entregas por Cliente"
+  )
+
+# Mostrar el mapa
+fig
+```
 
 ## Segmentación y patrones en entregas.
 
 ### PENDIENTE Volumen y Distribución de Entregas
 
 > ¿Cuántas entregas corresponden a cada cliente?
->
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear barchart con la cantidad total de entregas por cliente
+barchart_cliente <- data %>%
+  group_by(cliente) %>%
+  summarise(cantidad = n()) %>%
+  ggplot(aes(x = factor(cliente), y = cantidad, fill = factor(cliente))) +
+  
+  # Barras con color personalizado
+  geom_bar(stat = "identity") +
+  
+  # Mostrar número de entregas arriba de cada barra
+  geom_text(aes(label = cantidad), vjust = -0.5, size = 5) +
+  
+  # Personalizar colores de las barras
+  scale_fill_manual(values = c("20" = "dodgerblue", "70" = "tomato")) +
+  
+  # Títulos y etiquetas
+  labs(
+    title = "Cantidad de Entregas por Cliente",
+    x = "Cliente", 
+    y = "Cantidad de Entregas"
+  ) +
+  
+  # Tema del gráfico
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar leyenda si los colores coinciden con los clientes
+
+# Mostrar el gráfico
+print(barchart_cliente)
+```
+
 > Identificar entregas recurrentes a domicilios, zonas de entregas.
->
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar y contar la cantidad de entregas por cliente y día de la semana
+entregas_por_cliente_dia <- data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  group_by(cliente, dia_str) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado")))
+
+# Line chart de cantidad de entregas por cliente y día de la semana
+linechart_cliente_dia <- entregas_por_cliente_dia %>%
+  ggplot(aes(x = dia_str, y = cantidad, color = factor(cliente), group = cliente)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(title = "Cantidad de Entregas por Día de la Semana y Cliente",
+       x = "Día de la Semana", y = "Cantidad de Entregas", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mostrar el gráfico
+print(linechart_cliente_dia)
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar y contar las entregas por cliente, día y mes
+entregas_por_cliente_tiempo <- data %>%
+  group_by(cliente, dia, mes) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  mutate(fecha = as.Date(paste(mes, dia, sep = "-"), format = "%m-%d"))
+
+# Line chart con la evolución de las entregas a lo largo del tiempo
+linechart_cliente_tiempo <- entregas_por_cliente_tiempo %>%
+  ggplot(aes(x = fecha, y = cantidad, color = factor(cliente), group = cliente)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Evolución de Entregas por Cliente a lo Largo del Tiempo",
+       x = "Fecha", y = "Cantidad de Entregas", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mostrar el gráfico
+print(linechart_cliente_tiempo)
+```
+
 > Los domicilios reciben entregas de un único cliente o solo 20 o 70?
->
+
+Total de ordenes con más de una entrega: 5027
+
+::: panel-tabset
+## Distribución
+
+```{r, warning=FALSE, echo=FALSE, output = FALSE}
+entregas_por_orden <- data %>%
+  group_by(id_orden) %>%
+  summarize(cant_entregas = n(),
+            has_many = cant_entregas > 1,
+            clientes_unicos = n_distinct(cliente))
+
+# Crear el histograma
+ggplot(entregas_por_orden, aes(x = cant_entregas)) +
+  geom_histogram(binwidth = 1, fill = "#94C11F", color = "#272727") +
+  labs(title = "Histograma de Entregas por domicilio", 
+       x = "Valor", 
+       y = "Cantidad de entregas") +
+  theme_minimal()
+```
+
+## Porcentajes
+
+```{r, warning=FALSE, echo=FALSE, output = FALSE}
+# Calcular las frecuencias y porcentajes
+frecuencias <- entregas_por_orden %>%
+  count(has_many) %>%
+  mutate(porcentaje = (n / sum(n)) * 100)
+
+# Crear el gráfico de barras con porcentajes encima
+ggplot(frecuencias, aes(x = has_many, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F", color = "#272727") +
+  geom_text(aes(label = paste0(round(porcentaje, 1), "%")), 
+            vjust = -0.5, size = 3) +  # Ajuste para que el texto aparezca encima
+  labs(title = "Domicilios con más de una entrega", 
+       x = "¿Tiene más de una entrega?", 
+       y = "Cantidad de resultados") +
+  theme_minimal()
+```
+:::
+
+```{r, warning=FALSE, echo=FALSE, output = FALSE}
+resumen_clientes <- ordenes_multiples %>%
+  count(clientes_unicos)  # Contar cuántas órdenes tienen 1 o más clientes únicos
+
+ggplot(resumen_clientes, aes(x = factor(clientes_unicos), y = n, fill = factor(clientes_unicos))) +
+  geom_bar(stat = "identity", fill = "#94C11F", color = "#272727") +
+  labs(title = "Distribución de Órdenes por Número de Clientes Únicos",
+       x = "Número de Clientes Únicos en la Orden",
+       y = "Cantidad de Órdenes") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
 > ¿Qué porcentaje de entregas se concentra en las localidades más activas?
 
 ### PENDIENTE Estacionalidad y temporalidad.
 
-> ¿Qué días de la semana o meses tienen más visitas?
->
 > ¿Existen patrones estacionales en la demanda de entregas (meses con mayor/menor volumen)?
->
+
+```{r, warning=FALSE, echo=FALSE, output = FALSE}
+# 1. Filtrar valores faltantes en la columna 'fin_visita'
+df_date <- data %>% filter(!is.na(fin_visita))
+
+# 2. Convertir 'fin_visita' a fecha-hora y luego extraer solo la fecha
+df_date$fin_visita <- as.POSIXct(df_date$fin_visita, format = "%Y-%m-%d %H:%M:%S")
+df_date$fecha <- as.Date(df_date$fin_visita)  # Extraer la fecha sin horas
+
+# 3. Agrupar las entregas por día
+entregas_diarias <- df_date %>%
+  group_by(fecha) %>%
+  summarize(total_entregas = n())
+
+# 4. Completar días faltantes con 0 entregas
+rango_fechas <- seq(min(entregas_diarias$fecha), max(entregas_diarias$fecha), by = "day")
+
+entregas_completas <- data.frame(fecha = rango_fechas) %>%
+  left_join(entregas_diarias, by = "fecha") %>%
+  mutate(total_entregas = ifelse(is.na(total_entregas), 0, total_entregas))
+
+# 5. Crear la serie temporal diaria con frecuencia semanal (7 días)
+entregas_ts <- ts(
+  entregas_completas$total_entregas,
+  start = c(year(min(entregas_completas$fecha)), yday(min(entregas_completas$fecha))),
+  frequency = 7  # Frecuencia semanal
+)
+
+# 6. Descomponer la serie temporal usando STL
+descomposicion_stl <- stl(entregas_ts, s.window = "periodic")
+
+# 7. Graficar la descomposición STL
+autoplot(descomposicion_stl) +
+  ggtitle("Descomposición STL de la Serie de Tiempo Diaria")
+
+```
+
+```{r echo = FALSE}
+# 8. Graficar la función de autocorrelación (ACF)
+acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
+```
+
 > ¿El volumen de entregas varía significativamente entre diferentes meses del año?
 >
 > ¿Cómo varía la demanda entre diferentes semanas o meses?
@@ -852,7 +1110,7 @@ data %>% filter(fin_visita == "2024-05-18 11:14:26")
 
 ## Distribución de entregas
 
-### PENDIENTE Volumen y Cobertura Geográfica
+### PENDIENTE Volumen y Cobertura Geográfica\|
 
 > ¿Cuántas entregas se realizaron en cada localidad o región?
 >
