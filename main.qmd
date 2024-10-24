@@ -43,7 +43,7 @@ En el marco del **Primer Desafío Internacional de la Red Latinoamericana de Cie
 
 El **objeto de estudio** es un conjunto de datos proporcionado por **iFlow**, una empresa argentina especializada en logística integral, con operaciones tanto nacionales como internacionales dentro del MERCOSUR. iFlow se dedica a la gestión y co-gerencia de cadenas de abastecimiento para sus clientes, buscando optimizar procesos y mejorar la eficiencia operativa.
 
-### Objetivo del análisis
+## Objetivo del análisis
 
 Este análisis tiene como objetivo:
 
@@ -53,7 +53,7 @@ Este análisis tiene como objetivo:
 
 3.  **Detectar posibles inconsistencias o errores** en la base de datos, propias de un entorno operativo real, para evaluarlas e integrarlas al análisis.
 
-### Metodología y Alcance
+## Metodología y Alcance
 
 Se trabajará con información detallada de las entregas, incluyendo aspectos como dirección, localidad, coordenadas geográficas, bultos, peso y unidades transportadas, así como los tiempos de inicio y finalización de cada entrega. A partir de estos datos se buscará:
 
@@ -65,9 +65,7 @@ Se trabajará con información detallada de las entregas, incluyendo aspectos co
 
 Este trabajo culminará con la presentación de los hallazgos y recomendaciones, cuyo objetivo final es fortalecer la capacidad operativa de iFlow, mejorando su eficiencia y calidad de servicio en el entorno competitivo del MERCOSUR.
 
-# Análisis
-
-## Limpieza de datos.
+# Limpieza de datos.
 
 La primera etapa de este análisis consistió en la **limpieza de datos**, un proceso esencial para garantizar la calidad y fiabilidad de los resultados. Dado que la base proporcionada por **iFlow** contiene información real sobre 27.484 entregas realizadas en un período de tres meses, nos enfocamos en **identificar problemas comunes** como:
 
@@ -81,7 +79,7 @@ La primera etapa de este análisis consistió en la **limpieza de datos**, un pr
 
 Una vez detectados estos problemas, aplicamos las transformaciones necesarias, como la eliminación de duplicados, la corrección de formatos y la imputación o exclusión de valores faltantes según el caso. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.
 
-### Problemas encontrados.
+## Problemas encontrados.
 
 En primer lugar realizamos algunos cambios para **facilitar el trabajo** con los datos.
 
@@ -257,7 +255,7 @@ data <- data %>%
 # write.csv(x = data, file = "iflow_clean.csv")
 ```
 
-### Observaciones y sugerencias.
+## Observaciones y sugerencias.
 
 1.  Un gran porcentaje de las entregas tienen registrado el mismo horario para el inicio y final de la visitas.
 
@@ -267,7 +265,7 @@ data <- data %>%
 data <- read.csv("data/clean_iflow_data.csv")
 ```
 
-## Detección de anomalías.
+# Detección de anomalías.
 
 En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
 
@@ -312,7 +310,7 @@ fig
 ![](images/screen.png)
 :::
 
-### PENDIENTE Entregas en día domingo.
+## PENDIENTE Entregas en día domingo.
 
 > mostrar cantidad de entregas por día, indicar que los domingos no es comun
 
@@ -339,11 +337,17 @@ ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
 
 > e identificar las entregas con su horario.
 
-```{r,warning=FALSE,echo=FALSE}
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
 data %>% filter(dia_str == "domingo")
 ```
 
-### PENDIENTE Entregas consecutivas inmediatas.
+| Orden  | Localidad       | Fecha y hora        |
+|--------|-----------------|---------------------|
+| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+
+## PENDIENTE Entregas consecutivas inmediatas.
 
 Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
 
@@ -363,7 +367,7 @@ Algunas sugerencias e ideas para mejorar esto incluyen:
 
 -   Desarrollo y uso de hardware específico para la carga de datos.
 
-## PENDIENTE Vista general.
+# PENDIENTE Vista general.
 
 En esta sección ofrecemos una **visión superficial de los datos**, brindando un panorama inicial que permite familiarizarnos con su estructura y contenido.
 
@@ -495,7 +499,7 @@ library(raster)
 
 ```{r,warning=FALSE,echo=FALSE}
 # Cargar los barrios desde el archivo GeoJSON
-barrios.comp <- st_read("maps/barrios.geojson")  # Reemplaza con la ruta correcta
+barrios.comp <- st_read("maps/barrios.geojson", quiet = TRUE)  # Reemplaza con la ruta correcta
   
 barrios <- barrios.comp[, c("BARRIO", "geometry")]
 
@@ -535,7 +539,7 @@ ggplot(data = barrios) +
 
 ```{r, warning=FALSE, echo=FALSE}
 # 1. Cargar los barrios desde el archivo GeoJSON
-barrios.comp <- st_read("maps/barrios.geojson")  # Ajusta la ruta según corresponda
+barrios.comp <- st_read("maps/barrios.geojson", quiet = TRUE)  # Ajusta la ruta según corresponda
 
 # 2. Agrupar los polígonos por "COMUNA"
 comunas <- barrios.comp %>%
@@ -780,7 +784,7 @@ ggplot(resumen_secuencias, aes(x = categoria)) +
 
 ```
 
-#### Conclusiones:
+## Conclusiones:
 
 Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
 
@@ -827,7 +831,7 @@ Algunas consideraciones:
 # Agrupar los datos por día y hora para contar ocurrencias
 resumen <- data %>%
   group_by(dia_str, hora) %>%
-  summarise(n = n()) %>%
+  summarise(n = n(), .groups = "drop") %>%
   ungroup()
 
 # Asegurar el orden correcto de los días (Lunes a Domingo)
@@ -913,9 +917,9 @@ fig <- fig %>%
 fig
 ```
 
-## Segmentación y patrones en entregas.
+# Segmentación y patrones en entregas.
 
-### PENDIENTE Volumen y Distribución de Entregas
+## PENDIENTE Volumen y Distribución de Entregas
 
 > ¿Cuántas entregas corresponden a cada cliente?
 
@@ -1190,7 +1194,7 @@ ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor
   theme_minimal()
 ```
 
-### PENDIENTE Estacionalidad y temporalidad.
+## PENDIENTE Estacionalidad y temporalidad.
 
 > ¿Existen patrones estacionales en la demanda de entregas (meses con mayor/menor volumen)?
 
@@ -1239,7 +1243,7 @@ acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
 >
 > ¿Cómo varía la demanda entre diferentes semanas o meses?
 
-### PENDIENTE Eficiencia y Rendimiento Operativo
+## PENDIENTE Eficiencia y Rendimiento Operativo
 
 > ¿Cuál es el tiempo promedio de entrega por cliente y por localidad?
 >
@@ -1249,13 +1253,13 @@ acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
 >
 > ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
 
-## Unidades de Transporte
+# Unidades de Transporte
 
 En los datos proporcionados no contamos con la información necesaria para realizar un análisis específico de las unidades de transporte, ya que sería indispensable disponer de un identificador único para cada vehículo. Sin embargo, incluimos esta sección como prueba de concepto para demostrar el valor que podría generar este tipo de análisis en la operación logística. Disponer de esta información permitiría evaluar aspectos fundamentales de la gestión de la flota, optimización de rutas y eficiencia operativa.
 
 A continuación, presentamos algunas preguntas clave que podrían responderse con un análisis detallado de las unidades de transporte:
 
-#### **Preguntas sobre Desempeño y Utilización de la Flota**
+## **Preguntas sobre Desempeño y Utilización de la Flota**
 
 1.  **¿Cuánto tiempo real dedica cada unidad a entregas versus tiempo muerto (espera, carga, mantenimiento)?**
 
@@ -1601,7 +1605,7 @@ mapa_leaflet
 >
 > Ampliar u organizar nuevos centros de distribución. (En base a los datos de estos dos clientes), Segmentación de entregas (global y por cliente) para identificar puntos donde sería ideal. (Centro de zona, cruce de zonas, cluster con más o menor actividad)
 
-### Intentos de identificar transportistas.
+# Intentos de identificar transportistas.
 
 A priori y para facilitar el análisis podríamos suponer que las entregas las realizan dos camiones. Uno para cada cliente. Podemos validar que esto es incorrecto al estudiar las entregas de un único cliente.
 
