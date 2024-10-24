@@ -265,125 +265,20 @@ data <- data %>%
 data <- read.csv("data/clean_iflow_data.csv")
 ```
 
-# Detección de anomalías.
-
-En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
-
-El propósito de esta etapa fue **registrar y documentar** estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.
-
-### PENDIENTE Centro de distribución en Mendoza.
-
-> mostrar grafico, imagen de google maps y explicación 
-
-::: panel-tabset
-## 📍 Mapa
-
-```{r,warning=FALSE,echo=FALSE}
-# Crear un gráfico usando Plotly y Mapbox
-fig <- plot_ly(
-  data = data,
-  type = 'scattermapbox',
-  mode = 'markers',
-  lat = ~latitud,
-  lon = ~longitud,
-  marker = list(size = 8, color = 'blue', opacity = 0.7)
-)
-
-# Configurar el estilo de Mapbox (puedes cambiar el estilo)
-fig <- fig %>%
-  layout(
-    mapbox = list(
-      style = 'carto-positron', # Otros estilos: 'open-street-map', 'stamen-terrain', etc.
-      zoom = 2, # Nivel de zoom
-      center = list(lat = mean(data$latitud), lon = mean(data$longitud)) # Centrado en los datos
-    ),
-    margin = list(t = 0, b = 0, l = 0, r = 0) # Margen para ajustar el espacio del gráfico
-  )
-
-# Mostrar el gráfico
-fig
-
-```
-
-## 🖼️ Screenshot
-
-![](images/screen.png)
-:::
-
-## PENDIENTE Entregas en día domingo.
-
-> mostrar cantidad de entregas por día, indicar que los domingos no es comun
-
-```{r,warning=FALSE,echo=FALSE}
-# Convertir la columna dia_str en un factor ordenado
-data <- data %>%
-  mutate(dia_str = factor(dia_str, 
-                          levels = c("lunes", "martes", "miércoles", 
-                                     "jueves", "viernes", "sábado","domingo")))
-
-# Agrupar por el nombre del día y contar las entregas
-entregas_por_dia <- data %>%
-  group_by(dia_str) %>%
-  summarise(n = n())
-
-# Crear el gráfico de barras
-ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
-  geom_bar(stat = "identity", fill = "#94C11F") +
-  labs(title = "Cantidad de Entregas por Día de la Semana",
-       x = "Día de la Semana",
-       y = "Número de Entregas") +
-  theme_minimal()
-```
-
-> e identificar las entregas con su horario.
-
-```{r,warning=FALSE,echo=FALSE, output=FALSE}
-data %>% filter(dia_str == "domingo")
-```
-
-| Orden  | Localidad       | Fecha y hora        |
-|--------|-----------------|---------------------|
-| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-
-## PENDIENTE Entregas consecutivas inmediatas.
-
-Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
-
-Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
-
-Horarios cargados de forma incorrecta podrian causar:
-
-1.  Mala estimación sobre tiempos muertos.
-2.  Dificulta optimizar los procesos de entrega.
-3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
-
-Algunas sugerencias e ideas para mejorar esto incluyen:
-
--   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
-
--   Implementación de un sistema de validación de los datos para evitar duplicados.
-
--   Desarrollo y uso de hardware específico para la carga de datos.
-
-# PENDIENTE Vista general.
+# Vista general.
 
 En esta sección ofrecemos una **visión superficial de los datos**, brindando un panorama inicial que permite familiarizarnos con su estructura y contenido.
 
-![](images/clipboard-2661057119.png)
-
-Este primer acercamiento busca proporcionar **intuición inicial** sobre los patrones más evidentes y áreas de interés para análisis más profundos.
-
-> Cuantas entregas tenemos en total?
-
 ```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Cuantas entregas tenemos en total?
 dim(data)
 dim(data %>% filter(cliente==20))
 dim(data %>% filter(cliente==70))
 ```
 
-Hay 27419 entregas, 16545 del cliente 20 y 10874 del cliente 70.
+![](images/clipboard-2661057119.png)
+
+Se registraron 27.419 entregas de dos clientes distintos: 16,545 del cliente 20 y 10.874 del cliente 70.
 
 > En que plazo estamos hablando, fecha de la primera entrega y la última?
 
@@ -403,6 +298,39 @@ data %>%
 Primera visita en 2024-05-03 08:08:53. El 3 de Mayo.
 
 Última visita en 2024-08-06 16:57:00. El 8 de Agosto.
+
+![](images/timelien.png)
+
+Con un promedio de X entregas por mes y ...
+
+::: panel-tabset
+## Entregas por cliente
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Crear una columna con el primer día del mes correspondiente
+data <- data %>%
+  mutate(mes = as.Date(floor_date(fin_visita, "month")))  # Asegurar que 'mes' sea Date
+
+# Agrupar por mes y contar la cantidad de entregas
+entregas_por_mes <- data %>%
+  group_by(mes, cliente) %>%
+  summarise(n = n())
+
+entregas_por_mes$cliente <- as.factor(entregas_por_mes$cliente)
+
+# Crear el gráfico de barras
+ggplot(entregas_por_mes, aes(x = mes, y = n, fill=cliente)) +
+  geom_bar(stat = "identity", position="dodge") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(title = "Cantidad de Entregas por Mes por cliente",
+       x = "Mes",
+       y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Entregas por mes
 
 ```{r,warning=FALSE,echo=FALSE}
 
@@ -425,6 +353,7 @@ ggplot(entregas_por_mes, aes(x = mes, y = n)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+:::
 
 > ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
 
@@ -435,6 +364,8 @@ En promedio cada entrega tiene:
 -   5.75 Bultos
 
 -   Un peso de 41.15kg
+
+porque dan con coma????????????????????????????
 
 ::: panel-tabset
 ## 🔢 Unidades
@@ -492,7 +423,71 @@ mean(data$peso) # Promedio
 # Geolocalización
 library(sf)
 library(raster)
+
 ```
+
+```{r,warning=FALSE,echo=FALSE}
+data$cliente <- as.factor(data$cliente)
+# Graficar las entregas por cliente con colores distintos
+plot_ly(
+  data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  marker = list(size = 7, opacity = 0.3),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  )
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear una lista de fechas únicas extraídas de la columna fin_visita
+fechas_unicas <- unique(as.Date(data$fin_visita))
+
+# Graficar las entregas por cliente con un slider para cambiar por fecha
+plot_ly(
+  data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~as.Date(fin_visita),  # Agregar la fecha como frame para la animación
+  marker = list(size = 7, opacity = 0.7),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Fecha: ")
+  )
+```
+
+Para verlo de forma más resumida;
 
 ::: panel-tabset
 ## 🏘️ Barrios
@@ -618,12 +613,48 @@ heatmap_plot
 ```
 :::
 
+### PENDIENTE Centro de distribución en Mendoza.
+
+> mostrar grafico, imagen de google maps y explicación.
+
+::: panel-tabset
+## 📍 Mapa
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear un gráfico usando Plotly y Mapbox
+fig <- plot_ly(
+  data = data,
+  type = 'scattermapbox',
+  mode = 'markers',
+  lat = ~latitud,
+  lon = ~longitud,
+  marker = list(size = 8, color = 'blue', opacity = 0.7)
+)
+
+# Configurar el estilo de Mapbox (puedes cambiar el estilo)
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'carto-positron', # Otros estilos: 'open-street-map', 'stamen-terrain', etc.
+      zoom = 2, # Nivel de zoom
+      center = list(lat = mean(data$latitud), lon = mean(data$longitud)) # Centrado en los datos
+    ),
+    margin = list(t = 0, b = 0, l = 0, r = 0) # Margen para ajustar el espacio del gráfico
+  )
+
+# Mostrar el gráfico
+fig
+
+```
+
+## 🖼️ Screenshot
+
+![](images/screen.png)
+:::
+
 > ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
 
 ```{r, warning=FALSE, echo=FALSE}
-
-head(data)
-
 # dim(data %>% filter(inicio_visita != fin_visita)) # 17142
 
 # data %>% filter(inicio_visita == fin_visita) # 10255
@@ -916,6 +947,69 @@ fig <- fig %>%
 # Mostrar el mapa
 fig
 ```
+
+# Detección de anomalías.
+
+En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
+
+El propósito de esta etapa fue **registrar y documentar** estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.
+
+## PENDIENTE Entregas en día domingo.
+
+> mostrar cantidad de entregas por día, indicar que los domingos no es comun
+
+```{r,warning=FALSE,echo=FALSE}
+# Convertir la columna dia_str en un factor ordenado
+data <- data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado","domingo")))
+
+# Agrupar por el nombre del día y contar las entregas
+entregas_por_dia <- data %>%
+  group_by(dia_str) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  labs(title = "Cantidad de Entregas por Día de la Semana",
+       x = "Día de la Semana",
+       y = "Número de Entregas") +
+  theme_minimal()
+```
+
+> e identificar las entregas con su horario.
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+data %>% filter(dia_str == "domingo")
+```
+
+| Orden  | Localidad       | Fecha y hora        |
+|--------|-----------------|---------------------|
+| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+
+## PENDIENTE Entregas consecutivas inmediatas.
+
+Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
+
+Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
+
+Horarios cargados de forma incorrecta podrian causar:
+
+1.  Mala estimación sobre tiempos muertos.
+2.  Dificulta optimizar los procesos de entrega.
+3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
+
+Algunas sugerencias e ideas para mejorar esto incluyen:
+
+-   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
+
+-   Implementación de un sistema de validación de los datos para evitar duplicados.
+
+-   Desarrollo y uso de hardware específico para la carga de datos.
 
 # Segmentación y patrones en entregas.
 
@@ -1605,7 +1699,7 @@ mapa_leaflet
 >
 > Ampliar u organizar nuevos centros de distribución. (En base a los datos de estos dos clientes), Segmentación de entregas (global y por cliente) para identificar puntos donde sería ideal. (Centro de zona, cruce de zonas, cluster con más o menor actividad)
 
-# Intentos de identificar transportistas.
+## Intentos de identificar transportistas.
 
 A priori y para facilitar el análisis podríamos suponer que las entregas las realizan dos camiones. Uno para cada cliente. Podemos validar que esto es incorrecto al estudiar las entregas de un único cliente.
 

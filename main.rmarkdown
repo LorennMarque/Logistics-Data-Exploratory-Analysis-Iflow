@@ -1,0 +1,2113 @@
+---
+title: "Análisis de Datos"
+format: html
+editor: visual
+toc: true
+toc-location: left
+number-sections: true
+theme: Darkly
+---
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Limpieza de datos
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(lubridate)
+
+# Analisis exploratorio
+library(DataExplorer)
+library(inspectdf)
+library(plotly)
+library(viridis)
+
+# Análisis de series temporales
+library(tseries)
+library(forecast)
+
+# Clustering
+library(factoextra)
+
+# Claves de APIs
+mapbox_token <- "pk.eyJ1IjoibG9yZW5uem8iLCJhIjoiY20xcHYyd3g2MDk0bTJxb2k4YWZvOHlmcSJ9.r4E2pcTSM89NNHBFSmvKHw"
+
+# Cargamos los datos
+data <- read_csv("data/raw_iflow_data.csv", show_col_types = FALSE)
+```
+
+
+
+![](images/banner.png)
+
+# Introducción
+
+En el marco del **Primer Desafío Internacional de la Red Latinoamericana de Ciencia de Datos**, este análisis tiene como propósito abordar un problema práctico del ámbito logístico. El proyecto promueve la colaboración entre estudiantes de diversas universidades latinoamericanas, fomentando el trabajo en equipo y la toma de decisiones basadas en datos reales.
+
+El **objeto de estudio** es un conjunto de datos proporcionado por **iFlow**, una empresa argentina especializada en logística integral, con operaciones tanto nacionales como internacionales dentro del MERCOSUR. iFlow se dedica a la gestión y co-gerencia de cadenas de abastecimiento para sus clientes, buscando optimizar procesos y mejorar la eficiencia operativa.
+
+## Objetivo del análisis
+
+Este análisis tiene como objetivo:
+
+1.  **Comprender y describir** las principales características del conjunto de datos, que incluye **27.484 registros de entregas** realizadas en un período de tres meses.
+
+2.  **Identificar patrones y tendencias** que permitan obtener insights relevantes sobre las operaciones de iFlow.
+
+3.  **Detectar posibles inconsistencias o errores** en la base de datos, propias de un entorno operativo real, para evaluarlas e integrarlas al análisis.
+
+## Metodología y Alcance
+
+Se trabajará con información detallada de las entregas, incluyendo aspectos como dirección, localidad, coordenadas geográficas, bultos, peso y unidades transportadas, así como los tiempos de inicio y finalización de cada entrega. A partir de estos datos se buscará:
+
+-   Visualizar y analizar la eficiencia operativa.
+
+-   Detectar áreas de mejora en los procesos logísticos.
+
+-   Proponer soluciones basadas en evidencia que contribuyan a la optimización del servicio.
+
+Este trabajo culminará con la presentación de los hallazgos y recomendaciones, cuyo objetivo final es fortalecer la capacidad operativa de iFlow, mejorando su eficiencia y calidad de servicio en el entorno competitivo del MERCOSUR.
+
+# Limpieza de datos.
+
+La primera etapa de este análisis consistió en la **limpieza de datos**, un proceso esencial para garantizar la calidad y fiabilidad de los resultados. Dado que la base proporcionada por **iFlow** contiene información real sobre 27.484 entregas realizadas en un período de tres meses, nos enfocamos en **identificar problemas comunes** como:
+
+-   **Valores faltantes:** Campos incompletos que podrían afectar el análisis.
+
+-   **Duplicados:** Registros repetidos que distorsionan los resultados.
+
+-   **Inconsistencias:** Errores en el formato o contenido de los datos (por ejemplo, coordenadas geográficas incorrectas o tiempos de entrega incoherentes).
+
+-   **Outliers:** Valores atípicos que requieren evaluación para determinar si corresponden a errores o situaciones reales.
+
+Una vez detectados estos problemas, aplicamos las transformaciones necesarias, como la eliminación de duplicados, la corrección de formatos y la imputación o exclusión de valores faltantes según el caso. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.
+
+## Problemas encontrados.
+
+En primer lugar realizamos algunos cambios para **facilitar el trabajo** con los datos.
+
+-   Tratar Columnas innecesarias
+
+    La columna InicioVisitaPlanificado y FinVisitaPlanificado contienen los mismos valores por lo que las unificamos en una nueva columna.
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+data <- data %>%
+  # Nueva columna para almacenar el horario planificado
+  
+  mutate(visita_planificada = InicioVisitaPlanificado) %>%
+  
+  # Eliminamos InicioVisitaPlanificado y FinVisitaPlanificado
+  
+  dplyr::select(-InicioVisitaPlanificado, -FinVisitaPlanificado)
+```
+
+
+
+-   Formatear correctamente las variables
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Convertir columnas correspondientes a formato de fecha y hora
+data$InicioVisitaReal <- as.POSIXct(data$InicioVisitaReal,
+                                    format="%Y-%m-%d %H:%M:%OS")
+
+data$FinVisitaReal <- as.POSIXct(data$FinVisitaReal,
+                                 format="%Y-%m-%d %H:%M:%OS")
+
+data$visita_planificada <- as.POSIXct(data$visita_planificada,
+                                      format="%Y-%m-%d %H:%M:%OS")
+
+# Las columnas InicioHorario1, FinHorario1, las pasamos a caracter para categorizarlas facilmente.
+data$InicioHorario1 <- as.character(data$InicioHorario1)
+data$FinHorario1 <- as.character(data$FinHorario1)
+
+# Pasamos variables categóricas a factores.
+data$cliente <- as.factor(data$cliente)
+```
+
+
+
+-   Renombrar las columnas por nombres intuitivos.
+
+
+
+```{r ,warning=FALSE,echo=FALSE}
+# Renombrar columnas específicas con dplyr
+data <- data %>%
+  rename(      id_orden = iddomicilioorden,
+         inicio_horario = InicioHorario1,
+            fin_horario = FinHorario1,
+                 bultos = Bultos,
+                   peso = Peso,
+               unidades = Unidades,
+          inicio_visita = InicioVisitaReal,
+             fin_visita = FinVisitaReal)
+
+# Reorganizar columnas.
+data <- data %>%
+  dplyr::select(id_orden, cliente, localidad, direccion, latitud, longitud,
+         bultos, unidades, peso, inicio_horario, fin_horario, visita_planificada, inicio_visita, fin_visita)
+```
+
+
+
+Con estos cambios realizados pasamos a modificaciones y **arreglos necesarios** para un análisis correcto de los datos.
+
+-   Eliminación de filas duplicadas.
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+data <- data %>%
+  distinct()
+```
+
+
+
+-   Arreglo de valores faltantes en coordenadas.
+
+    El dato de coordenadas en algunas filas estaba vacio o indicaba "0". En algunos de estos casos pudimos rellenar estas coordenadas con datos existentes del domicilio (21 filas). En caso de que esto no sea posible las filas fueron eliminadas (19 filas) y no serán tomadas en cuenta para el análisis.
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Filtrar las filas donde latitud o longitud son NA
+cordenadas_vacias <- data %>%
+  filter(
+    is.na(latitud) | is.na(longitud) | latitud == 0 | longitud == 0
+    )
+
+# cordenadas_vacias # dim 43 x 14
+
+# Filtrar las observaciones donde id_orden está en cordenadas_vacias
+observaciones_id_orden <- data %>%
+  filter(id_orden %in% cordenadas_vacias$id_orden) %>%
+  group_by(id_orden) %>%
+  summarise(count = n())
+
+# Mostrar el resultado
+# observaciones_id_orden
+
+# Contar las apariciones de cada id_orden en cordenadas_vacias
+apariciones_cordenadas_vacias <- cordenadas_vacias %>%
+  group_by(id_orden) %>%
+  summarise(na_count = n())
+
+# Unir las tablas por id_orden
+resultado <- observaciones_id_orden %>%
+  left_join(apariciones_cordenadas_vacias, by = "id_orden") %>%
+  # Si no hay coincidencias en cordenadas_vacias, establecer na_count en 0
+  mutate(na_count = ifelse(is.na(na_count), 0, na_count)) %>%
+  # Restar las apariciones de cordenadas_vacias del total
+  mutate(count_diff = count - na_count) %>%
+
+# Filtrar solo los id_orden donde count_diff es mayor a 0
+  filter(count_diff > 0)
+
+# Mostrar el resultado
+#resultado
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Definir la función que revisa y sobrescribe latitud y longitud
+reparar_lat_long <- function(dataset, ids) {
+  # Iterar sobre cada id de la lista
+  for (id in ids) {
+    # Filtrar las observaciones válidas de latitud y longitud para este id_orden
+    observaciones_validas <- dataset %>%
+      filter(id_orden == id & !is.na(latitud) & !is.na(longitud) & latitud != 0 & longitud != 0)
+    
+    # Si existen observaciones válidas, tomar la primera ocurrencia
+    if (nrow(observaciones_validas) > 0) {
+      latitud_valida <- observaciones_validas$latitud[1]
+      longitud_valida <- observaciones_validas$longitud[1]
+      
+      # Sobrescribir las observaciones con latitud o longitud nulos o 0
+      dataset <- dataset %>%
+        mutate(
+          latitud = ifelse(id_orden == id & (is.na(latitud) | latitud == 0), latitud_valida, latitud),
+          longitud = ifelse(id_orden == id & (is.na(longitud) | longitud == 0), longitud_valida, longitud)
+        )
+    }
+  }
+  
+  # Retornar el dataset reparado
+  return(dataset)
+}
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Ejecutar la función usando los id_orden de la columna resultado
+ids_a_reparar <- resultado$id_orden
+
+# Aplicar la función a raw_data
+data <- reparar_lat_long(data, ids_a_reparar)
+```
+
+
+
+Por último creamos algunas nuevas columnas para distintos análisis. Entre estas algunas columnas para facilitar la interacción con fechas y horarios de entregas.
+
+
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Asegurar que los días se generen en español
+Sys.setlocale("LC_TIME", "es_ES.UTF-8") 
+
+# Crear la columna 'dia_str' con normalización de caracteres
+data <- data %>%
+  mutate(
+    dia = as.integer(format(fin_visita, "%d")),
+    mes = as.integer(format(fin_visita, "%m")),
+    hora = as.integer(format(fin_visita, "%H")),
+    diferencia_minutos = as.numeric(
+      difftime(fin_visita, visita_planificada, units = "mins")),
+    dia_str = tolower(iconv(weekdays(fin_visita, abbreviate = FALSE), 
+                            to = "UTF-8")),
+    duracion_visita_min = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "mins")),
+    duracion_visita_horas = as.numeric(
+      difftime(fin_visita, inicio_visita, units = "hours"))
+  )
+
+# Guardamos los datos limpios
+# write.csv(x = data, file = "iflow_clean.csv")
+```
+
+
+
+## Observaciones y sugerencias.
+
+1.  Un gran porcentaje de las entregas tienen registrado el mismo horario para el inicio y final de la visitas.
+
+    Esto puede deberse a la carga apresurada por parte de los repartidores o a un sistema poco eficiente de carga. Podría solucionarse con mejoras de interfaz o flujo de carga.
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+data <- read.csv("data/clean_iflow_data.csv")
+```
+
+
+
+# Vista general.
+
+En esta sección ofrecemos una **visión superficial de los datos**, brindando un panorama inicial que permite familiarizarnos con su estructura y contenido.
+
+
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Cuantas entregas tenemos en total?
+dim(data)
+dim(data %>% filter(cliente==20))
+dim(data %>% filter(cliente==70))
+```
+
+
+
+![](images/clipboard-2661057119.png)
+
+Se registraron 27.419 entregas de dos clientes distintos: 16,545 del cliente 20 y 10.874 del cliente 70.
+
+> En que plazo estamos hablando, fecha de la primera entrega y la última?
+
+
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+# Ensure fin_visita is in the correct POSIXct format
+data$fin_visita <- as.POSIXct(data$fin_visita, format = "%Y-%m-%d %H:%M:%OS")
+
+# Filter the row with the maximum fin_visita
+data %>% 
+  filter(fin_visita == min(fin_visita, na.rm = TRUE))
+
+data %>% 
+  filter(fin_visita == max(fin_visita, na.rm = TRUE))
+
+```
+
+
+
+Primera visita en 2024-05-03 08:08:53. El 3 de Mayo.
+
+Última visita en 2024-08-06 16:57:00. El 8 de Agosto.
+
+![](images/timelien.png)
+
+Con un promedio de X entregas por mes y ...
+
+::: panel-tabset
+## Entregas por cliente
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Crear una columna con el primer día del mes correspondiente
+data <- data %>%
+  mutate(mes = as.Date(floor_date(fin_visita, "month")))  # Asegurar que 'mes' sea Date
+
+# Agrupar por mes y contar la cantidad de entregas
+entregas_por_mes <- data %>%
+  group_by(mes, cliente) %>%
+  summarise(n = n())
+
+entregas_por_mes$cliente <- as.factor(entregas_por_mes$cliente)
+
+# Crear el gráfico de barras
+ggplot(entregas_por_mes, aes(x = mes, y = n, fill=cliente)) +
+  geom_bar(stat = "identity", position="dodge") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(title = "Cantidad de Entregas por Mes por cliente",
+       x = "Mes",
+       y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+## Entregas por mes
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+# Crear una columna con el primer día del mes correspondiente
+data <- data %>%
+  mutate(mes = as.Date(floor_date(fin_visita, "month")))  # Asegurar que 'mes' sea Date
+
+# Agrupar por mes y contar la cantidad de entregas
+entregas_por_mes <- data %>%
+  group_by(mes) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_mes, aes(x = mes, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  labs(title = "Cantidad de Entregas por Mes",
+       x = "Mes",
+       y = "Número de Entregas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+:::
+
+> ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
+
+En promedio cada entrega tiene:
+
+-   28.40 Unidades
+
+-   5.75 Bultos
+
+-   Un peso de 41.15kg
+
+porque dan con coma????????????????????????????
+
+::: panel-tabset
+## 🔢 Unidades
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = unidades)) +
+  geom_histogram(binwidth = 50, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Unidades",
+       x = "Bultos",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$unidades) # Promedio
+```
+
+
+
+## 📦 Bultos
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = bultos)) +
+  geom_histogram(binwidth = 5, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Bultos",
+       x = "Unidades",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$bultos) # Promedio
+```
+
+
+
+## ⚖️ Peso
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear el histograma
+ggplot(data, aes(x = peso)) +
+  geom_histogram(binwidth = 50, fill = "#94C11F", color = "black") +
+  labs(title = "Histograma de Peso",
+       x = "Unidades",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r,warning=FALSE,echo=FALSE}
+mean(data$peso) # Promedio
+```
+
+
+:::
+
+> ¿Cuál es la distribución de entregas por localidad o región?
+
+
+
+```{r,echo=FALSE, output=FALSE}
+# Geolocalización
+library(sf)
+library(raster)
+
+```
+
+```{r,warning=FALSE,echo=FALSE}
+data$cliente <- as.factor(data$cliente)
+# Graficar las entregas por cliente con colores distintos
+plot_ly(
+  data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  marker = list(size = 7, opacity = 0.3),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  )
+```
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear una lista de fechas únicas extraídas de la columna fin_visita
+fechas_unicas <- unique(as.Date(data$fin_visita))
+
+# Graficar las entregas por cliente con un slider para cambiar por fecha
+plot_ly(
+  data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~as.Date(fin_visita),  # Agregar la fecha como frame para la animación
+  marker = list(size = 7, opacity = 0.7),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 0, t = 0, b = 0, l = 0)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Fecha: ")
+  )
+```
+
+
+
+Para verlo de forma más resumida;
+
+::: panel-tabset
+## 🏘️ Barrios
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Cargar los barrios desde el archivo GeoJSON
+barrios.comp <- st_read("maps/barrios.geojson", quiet = TRUE)  # Reemplaza con la ruta correcta
+  
+barrios <- barrios.comp[, c("BARRIO", "geometry")]
+
+# Ver los nombres de las columnas del GeoDataFrame de barrios
+# Filtrar las entregas con coordenadas válidas y crear un objeto sf
+data_sf <- data %>%
+  filter(!is.na(latitud) & !is.na(longitud)) %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)  # Sistema de coordenadas WGS 84
+
+# Unir cada entrega con su barrio correspondiente
+entregas_por_barrio <- st_join(data_sf, barrios)
+
+# Agrupar por el campo "BARRIO" y contar el total de entregas
+entregas_agrupadas <- entregas_por_barrio %>%
+  group_by(BARRIO) %>%
+  summarise(total_entregas = n())
+
+# Unir la información agregada de entregas al GeoDataFrame de barrios
+barrios <- barrios %>%
+  st_join(entregas_agrupadas)
+
+# Rellenar valores NA (barrios sin entregas) con 0
+barrios$total_entregas[is.na(barrios$total_entregas)] <- 0
+
+# Crear el mapa con ggplot2
+ggplot(data = barrios) +
+  geom_sf(aes(fill = total_entregas)) +  # Colorear según la cantidad de entregas
+  scale_fill_viridis_c(option = "plasma", na.value = "white") +  # Paleta de colores
+  theme_minimal() +
+  labs(
+    title = "Cantidad de Entregas por Barrio en Buenos Aires",
+    fill = "Entregas"
+  )
+```
+
+
+
+## 🏙️ Comunas
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# 1. Cargar los barrios desde el archivo GeoJSON
+barrios.comp <- st_read("maps/barrios.geojson", quiet = TRUE)  # Ajusta la ruta según corresponda
+
+# 2. Agrupar los polígonos por "COMUNA"
+comunas <- barrios.comp %>%
+  group_by(COMUNA) %>%
+  summarise(geometry = st_union(geometry))  # Unir los polígonos por comuna
+
+# Asegurarse de que COMUNA sea texto
+comunas$COMUNA <- as.character(comunas$COMUNA)
+
+# 3. Filtrar las entregas con coordenadas válidas y convertirlas a un objeto sf
+data_sf <- data %>%
+  filter(!is.na(latitud) & !is.na(longitud)) %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)
+
+# 4. Asignar cada entrega a su comuna correspondiente usando st_join
+entregas_por_comuna <- st_join(data_sf, comunas)
+
+# 5. Agrupar por "COMUNA" y contar el total de entregas
+entregas_agrupadas <- entregas_por_comuna %>%
+  group_by(COMUNA) %>%
+  summarise(total_entregas = n())
+
+# 6. Unir los datos de entregas agregados al GeoDataFrame de comunas
+comunas <- comunas %>%
+  st_join(entregas_agrupadas)
+
+# 7. Rellenar los valores NA (comunas sin entregas) con 0
+comunas$total_entregas[is.na(comunas$total_entregas)] <- 0
+
+# 8. Crear el mapa con ggplot2
+ggplot(data = comunas) +
+  geom_sf(aes(fill = total_entregas)) +
+  scale_fill_viridis_c(option = "plasma", na.value = "white") +
+  theme_minimal() +
+  labs(
+    title = "Cantidad de Entregas por Comuna en Buenos Aires",
+    fill = "Entregas"
+  )
+
+
+```
+
+
+
+## 🌡️ Entregas Individuales
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Mapa de calor de entregas
+heatmap_data <- data %>%
+  group_by(latitud, longitud) %>%
+  summarise(total_entregas = n())
+
+# Graficar un mapa de calor para visualizar las zonas con mayor densidad de entregas
+heatmap_plot <- plot_ly(
+  heatmap_data,
+  lat = ~latitud,
+  lon = ~longitud,
+  z = ~total_entregas,
+  type = 'densitymapbox',
+  colorscale = 'Viridis',
+  radius = 10
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),
+      zoom = 10,
+      style = "open-street-map"
+    ),
+    title = "Mapa de Calor de Entregas en Buenos Aires",
+    showlegend = FALSE,  # Ocultar la leyenda
+    margin = list(r = 0, t = 60, b = 0, l = 0)  # Agregar más espacio en la parte superior
+  )
+
+# Mostrar el mapa de calor
+heatmap_plot
+
+```
+
+
+:::
+
+### PENDIENTE Centro de distribución en Mendoza.
+
+> mostrar grafico, imagen de google maps y explicación.
+
+::: panel-tabset
+## 📍 Mapa
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear un gráfico usando Plotly y Mapbox
+fig <- plot_ly(
+  data = data,
+  type = 'scattermapbox',
+  mode = 'markers',
+  lat = ~latitud,
+  lon = ~longitud,
+  marker = list(size = 8, color = 'blue', opacity = 0.7)
+)
+
+# Configurar el estilo de Mapbox (puedes cambiar el estilo)
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'carto-positron', # Otros estilos: 'open-street-map', 'stamen-terrain', etc.
+      zoom = 2, # Nivel de zoom
+      center = list(lat = mean(data$latitud), lon = mean(data$longitud)) # Centrado en los datos
+    ),
+    margin = list(t = 0, b = 0, l = 0, r = 0) # Margen para ajustar el espacio del gráfico
+  )
+
+# Mostrar el gráfico
+fig
+
+```
+
+
+
+## 🖼️ Screenshot
+
+![](images/screen.png)
+:::
+
+> ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# dim(data %>% filter(inicio_visita != fin_visita)) # 17142
+
+# data %>% filter(inicio_visita == fin_visita) # 10255
+
+# Calcular los totales y proporciones
+total <- nrow(data) # Total de filas
+dif_visit <- nrow(data %>% filter(inicio_visita != fin_visita)) # 17142 filas diferentes
+igual_visit <- nrow(data %>% filter(inicio_visita == fin_visita)) # Filas iguales
+
+# Crear un dataframe con los resultados
+resumen <- data.frame(
+  Categoria = c("Inicio ≠ Fin", "Inicio = Fin"),
+  Conteo = c(dif_visit, igual_visit)
+)
+
+# Calcular el porcentaje para cada categoría
+resumen$Porcentaje <- round((resumen$Conteo / total) * 100, 2)
+
+# Crear el gráfico de barras
+ggplot(resumen, aes(x = Categoria, y = Conteo, fill = Categoria)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(Porcentaje, "%")), 
+            vjust = -0.5, size = 5) +  # Etiquetas con porcentaje arriba de las barras
+  labs(title = "Comparación de visitas", 
+       x = "Categoría", 
+       y = "Cantidad de visitas") +
+  theme_minimal()
+
+
+```
+
+
+
+Bien cargados 17142 vs mal cargados 10255 mal. Pero encontramos que son incluso más. Una forma de solucionarlo podría haber sido ordenar las entregas en orden cronologico e intentar estimar la duración real segun el tiempo entre las entregas y la distancia entre ellas pero al intentar esto encontramos que muchas entregas consecutivas arrastran errores. Dificultando la identificación de rutas, estimación de tiempos muertos y duraciones reales entre entregas.
+
+
+
+```{r, warning=FALSE, echo=FALSE, output=FALSE}
+# Ordenar los datos cronológicamente (asumo que tienes una columna de timestamp)
+data_ordenada <- data %>%
+  arrange(inicio_visita)
+
+# Crear una columna que identifique si el fin_visita es igual al de la fila anterior
+data_secuencia <- data_ordenada %>%
+  mutate(
+    consecutivo = (fin_visita == lag(fin_visita, default = first(fin_visita)))
+  )
+
+# Crear un identificador para cada grupo consecutivo con el mismo fin_visita
+data_secuencia <- data_secuencia %>%
+  mutate(
+    grupo = cumsum(!consecutivo)  # Incrementar grupo cuando cambia fin_visita
+  )
+
+# Resumir el número de filas en cada grupo consecutivo
+resumen_secuencias <- data_secuencia %>%
+  group_by(fin_visita, grupo) %>%
+  summarise(cantidad = n(), .groups = "drop")
+
+# Mostrar las secuencias más largas
+resumen_secuencias %>%
+  arrange(desc(cantidad))
+
+filtered_amounts <- resumen_secuencias %>% filter(cantidad != 1)
+```
+
+
+
+Como referencia, el día 2024-06-27 16:06:00 hay 23 entregas graficadas el mismo día.
+
+::: panel-tabset
+## Ejemplo 50 entregas
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-12 16:12:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+
+
+
+## Ejemplo 23 entregas
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-27 16:06:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+
+
+:::
+
+¿Que tan frecuente es este error? Muy frecuentes
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Asegurarse de que no haya NAs en la columna 'cantidad'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(cantidad), cantidad != 1)
+
+# Crear la columna 'categoria' con las condiciones bien definidas
+resumen_secuencias <- resumen_secuencias %>%
+  mutate(
+    categoria = case_when(
+      cantidad == 2 ~ "2",
+      cantidad >= 3 & cantidad <= 5 ~ "De 3 a 5",
+      cantidad >= 6 & cantidad <= 10 ~ "De 6 a 10",
+      cantidad >= 11 & cantidad <= 20 ~ "De 11 a 20",
+      cantidad > 20 ~ "Más de 20"
+    )
+  )
+
+# Verificar si hay NAs en la columna 'categoria'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(categoria))
+
+# Crear el gráfico de barras con las categorías corregidas
+ggplot(resumen_secuencias, aes(x = categoria)) +
+  geom_bar(fill = "#94C11F", color = "black", alpha = 0.8) +
+  labs(
+    title = "Distribución de Secuencias por Categoría",
+    x = "Categoría de cantidad",
+    y = "Frecuencia"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
+
+```
+
+
+
+## Conclusiones:
+
+Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
+
+Al desconfiar del 46.67% de los datos es dificil y poco preciso cualquier tipo de analisis sobre la eficiencia operativa de las entregas. Esto puede traer posibles problemas como:
+
+1.  Problema 1
+2.  Problema 2
+
+Solucionar esta situacion representa una gran oportunidad y facilitaria exponencialmente el crecimiento de la empresa, precision de las ventanas de entrega, identificación de cuellos de botella reales y a final de cuentas la toma de decisiones operativas.
+
+> "Lo que no se mide, no se puede mejorar." - Peter F. Drucker
+
+A continuación listamos algunos posibles motivos y oportunidades para corregir la situación.
+
+1.  Manual de uso y capacitación sobre el sistema [UNIGIS](https://www.unigis.com/ "Sitio web oficial de Unigis")
+
+Basandonos en el [Manual de transportistas - Elementos de seguridad y APPS](https://transportes.iflow21.com/portal/es/kb/articles/manual-de-transportistas-elementos-de-seguridad-y-apps) encontramos la siguiente referencia sobre el uso de la aplicación.
+
+![](images/user_manual.png)
+
+Capacitar mejor al personal con mayor cantidad de recursos, claridad en los instructivos y videos demostrando el uso correcto del sistema [videos demostrando el uso correcto del sistema](https://www.youtube.com/watch?v=JnEHVHhs6V4 "Video grabado por Corporación Aceros Arequipa para su equipo") mejoraría la precision de la carga de los datos en el futuro.
+
+2.  Creación de una interfaz personalizada para Unigis.
+
+El error de carga de horarios iguales en entregas consecutivas puede deberse principalmente a la dificultad de uso del sistema o poca practicidad del mismo por la que los transportistas podrían saltear los pasos del instructivo.
+
+Si migrar a un nuevo sistema más moderno es una alternativa muy costosa podrían considerar hacer una inversión en desarrollo frontend para, utilizando la API del sistema actual, puedan tener una interfaz más amena a los transportistas.
+
+[![Referencia del Uso de la API cloud de Unigis](images/postman_reference.png)](https://www.postman.com/irampoldi/unigis/request/8833s18/reportedeviajes)
+
+El desarrollo de una interfaz personalizada para interactuar con su sistema actual podría ser una inversión considerable pero economica contrastando con la posibilidad de un desarrollo personalizado o la migración a un nuevo sistema.
+
+Algunas consideraciones:
+
+-   Inversión en equipo e investigación UX para asegurar el uso intuitivo de los transportistas. Es importante entender como es el uso del sistema en la practica.
+
+3.  Migrar a un sistema más moderno o diseñar uno a medida para sus necesidades.
+
+    Puede ser la opción mas costosa.
+
+> ¿Existen picos de entregas en ciertos días u horas?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar los datos por día y hora para contar ocurrencias
+resumen <- data %>%
+  group_by(dia_str, hora) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  ungroup()
+
+# Asegurar el orden correcto de los días (Lunes a Domingo)
+resumen$dia_str <- factor(resumen$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", 
+                                      "jueves", "viernes", "sábado", "domingo"))
+
+resumen <- resumen %>% filter(!is.na(dia_str), dia_str != "domingo")
+
+
+ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis(option = "C", direction = 1) +
+  labs(title = "Entregas por día y hora", 
+       x = "Hora del día", 
+       y = "Día de la semana", 
+       fill = "Cantidad") +
+  theme_minimal()
+```
+
+
+
+> ¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear una nueva columna que clasifique si llegó tarde o temprano
+data <- data %>%
+  mutate(estado_entrega = ifelse(diferencia_minutos > 0, "Tarde", "Temprano o a Tiempo"))
+
+# Agrupar los datos por mes y estado de entrega
+data_agrupada <- data %>%
+  group_by(mes, estado_entrega) %>%
+  summarise(cantidad = n())
+
+# Graficar con ggplot
+ggplot(data_agrupada, aes(x = mes, y = cantidad, fill = estado_entrega)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Cantidad de Entregas por Mes",
+    x = "Mes",
+    y = "Cantidad de Entregas",
+    fill = "Estado de Entrega"
+  ) +
+  theme_minimal()
+```
+
+
+
+> ¿Qué clientes generan más volumen de entregas y cuáles presentan más problemas o irregularidades?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear el mapa con plotly y mapbox
+fig <- plot_ly(
+  data = data,
+  lat = ~latitud,
+  lon = ~longitud,
+  color = ~factor(cliente),  # Colorear según cliente
+  colors = c("dodgerblue", "tomato"),  # Colores personalizados para cada cliente
+  type = 'scattermapbox', 
+  mode = 'markers',
+  marker = list(
+    size = 10,  # Tamaño del marcador
+    opacity = 0.2  # Ajustar transparencia (alpha)
+  ),
+  text = ~paste(
+    "Latitud: ", latitud, "<br>",
+    "Longitud: ", longitud, "<br>",
+    "Cliente: ", cliente, "<br>",
+    "ID Orden: ", id_orden, "<br>",
+    "Fecha: ", fin_visita
+  ),  # Información a mostrar en hover
+  hoverinfo = 'text'  # Mostrar solo el texto personalizado
+)
+
+# Configuración del mapa centrado en Buenos Aires
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'open-street-map',  # Estilo del mapa
+      zoom = 10,  # Ajuste del nivel de zoom para Buenos Aires
+      center = list(lat = -34.6037, lon = -58.3816)  # Centrar en Buenos Aires
+    ),
+    title = "Mapa de Entregas por Cliente"
+  )
+
+# Mostrar el mapa
+fig
+```
+
+
+
+# Detección de anomalías.
+
+En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
+
+El propósito de esta etapa fue **registrar y documentar** estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.
+
+## PENDIENTE Entregas en día domingo.
+
+> mostrar cantidad de entregas por día, indicar que los domingos no es comun
+
+
+
+```{r,warning=FALSE,echo=FALSE}
+# Convertir la columna dia_str en un factor ordenado
+data <- data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado","domingo")))
+
+# Agrupar por el nombre del día y contar las entregas
+entregas_por_dia <- data %>%
+  group_by(dia_str) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  labs(title = "Cantidad de Entregas por Día de la Semana",
+       x = "Día de la Semana",
+       y = "Número de Entregas") +
+  theme_minimal()
+```
+
+
+
+> e identificar las entregas con su horario.
+
+
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+data %>% filter(dia_str == "domingo")
+```
+
+
+
+| Orden  | Localidad       | Fecha y hora        |
+|--------|-----------------|---------------------|
+| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
+
+## PENDIENTE Entregas consecutivas inmediatas.
+
+Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
+
+Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
+
+Horarios cargados de forma incorrecta podrian causar:
+
+1.  Mala estimación sobre tiempos muertos.
+2.  Dificulta optimizar los procesos de entrega.
+3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
+
+Algunas sugerencias e ideas para mejorar esto incluyen:
+
+-   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
+
+-   Implementación de un sistema de validación de los datos para evitar duplicados.
+
+-   Desarrollo y uso de hardware específico para la carga de datos.
+
+# Segmentación y patrones en entregas.
+
+## PENDIENTE Volumen y Distribución de Entregas
+
+> ¿Cuántas entregas corresponden a cada cliente?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Crear barchart con la cantidad total de entregas por cliente
+barchart_cliente <- data %>%
+  group_by(cliente) %>%
+  summarise(cantidad = n()) %>%
+  ggplot(aes(x = factor(cliente), y = cantidad, fill = factor(cliente))) +
+  
+  # Barras con color personalizado
+  geom_bar(stat = "identity") +
+  
+  # Mostrar número de entregas arriba de cada barra
+  geom_text(aes(label = cantidad), vjust = -0.5, size = 5) +
+  
+  # Personalizar colores de las barras
+  scale_fill_manual(values = c("20" = "dodgerblue", "70" = "tomato")) +
+  
+  # Títulos y etiquetas
+  labs(
+    title = "Cantidad de Entregas por Cliente",
+    x = "Cliente", 
+    y = "Cantidad de Entregas"
+  ) +
+  
+  # Tema del gráfico
+  theme_minimal() +
+  theme(legend.position = "none")  # Ocultar leyenda si los colores coinciden con los clientes
+
+# Mostrar el gráfico
+print(barchart_cliente)
+```
+
+
+
+> Identificar entregas recurrentes a domicilios,
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar y contar la cantidad de entregas por cliente y día de la semana
+entregas_por_cliente_dia <- data %>%
+  filter(!is.na(dia_str) & dia_str != "domingo") %>%
+  group_by(cliente, dia_str) %>%
+  summarise(cantidad = n()) %>%
+  ungroup() %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado")))
+
+# Line chart de cantidad de entregas por cliente y día de la semana
+linechart_cliente_dia <- entregas_por_cliente_dia %>%
+  ggplot(aes(x = dia_str, y = cantidad, color = factor(cliente), group = cliente)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(title = "Cantidad de Entregas por Día de la Semana y Cliente",
+       x = "Día de la Semana", y = "Cantidad de Entregas", color = "Cliente") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Mostrar el gráfico
+print(linechart_cliente_dia)
+```
+
+
+
+> Los domicilios reciben entregas de un único cliente o solo 20 o 70?
+
+Total de ordenes con más de una entrega: 5027
+
+::: panel-tabset
+## Distribución
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+entregas_por_orden <- data %>%
+  group_by(id_orden) %>%
+  summarize(cant_entregas = n(),
+            has_many = cant_entregas > 1,
+            clientes_unicos = n_distinct(cliente))
+
+# Crear el histograma
+ggplot(entregas_por_orden, aes(x = cant_entregas)) +
+  geom_histogram(binwidth = 1, fill = "#94C11F", color = "#272727") +
+  labs(title = "Histograma de Entregas por domicilio", 
+       x = "Valor", 
+       y = "Cantidad de entregas") +
+  theme_minimal()
+```
+
+
+
+## Porcentajes
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular las frecuencias y porcentajes
+frecuencias <- entregas_por_orden %>%
+  count(has_many) %>%
+  mutate(porcentaje = (n / sum(n)) * 100)
+
+# Crear el gráfico de barras con porcentajes encima
+ggplot(frecuencias, aes(x = has_many, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F", color = "#272727") +
+  geom_text(aes(label = paste0(round(porcentaje, 1), "%")), 
+            vjust = -0.5, size = 3) +  # Ajuste para que el texto aparezca encima
+  labs(title = "Domicilios con más de una entrega", 
+       x = "¿Tiene más de una entrega?", 
+       y = "Cantidad de resultados") +
+  theme_minimal()
+```
+
+
+:::
+
+> ¿Qué porcentaje de entregas se concentra en las localidades más activas?
+>
+> > zonas de entregas.
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar los datos de Buenos Aires
+buenos_aires_data <- data %>%
+  filter(latitud >= -35.2, latitud <= -34.3,
+         longitud >= -58.8, longitud <= -57.9)
+
+# Extraer las coordenadas
+coords <- buenos_aires_data %>%
+  dplyr::select(latitud, longitud)
+
+# Método del codo para determinar el número óptimo de clusters
+set.seed(123)
+wss_values <- sapply(1:10, function(k) {
+  kmeans(coords, centers = k, nstart = 10)$tot.withinss
+})
+
+# Graficar el método del codo con ggplot2
+elbow_plot <- data.frame(K = 1:10, WSS = wss_values) %>%
+  ggplot(aes(x = K, y = WSS)) +
+  geom_point() +
+  geom_line() +
+  geom_vline(xintercept = 4, linetype = "dashed", color = "red") +
+  annotate("text", x = 4.2, y = wss_values[4] + 10, 
+           label = "Elección óptima de K", color = "red", hjust = 0) +
+  labs(title = "Método del codo para determinar K óptimo",
+       x = "Número de Clusters K",
+       y = "Suma de cuadrados dentro del cluster (WSS)") +
+  theme_minimal()
+
+# Aplicar K-means con K = 4
+set.seed(123)
+kmeans_result <- kmeans(coords, centers = 4, nstart = 10)
+
+# Agregar los clusters al DataFrame original
+buenos_aires_data <- buenos_aires_data %>%
+  mutate(cluster = as.factor(kmeans_result$cluster))
+
+```
+
+
+
+::: panel-tabset
+## Resultado
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Visualizar los clusters en un mapa interactivo con leaflet
+palette <- colorFactor(palette = "Set1", domain = buenos_aires_data$cluster)
+
+leaflet(data = buenos_aires_data) %>%
+  addTiles() %>%
+  addCircleMarkers(~longitud, ~latitud, 
+                   color = ~palette(cluster), 
+                   radius = 2, fillOpacity = 0.8, 
+                   popup = ~paste("Cluster:", cluster)) %>%
+  addLegend("bottomright", pal = palette, values = ~cluster,
+            title = "Clusters", opacity = 0.2)
+```
+
+
+
+## Elbow
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+print(elbow_plot)
+```
+
+
+:::
+
+::: panel-tabset
+## Entregas por zona
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por cluster y ordenarlos de mayor a menor
+cluster_counts <- buenos_aires_data %>%
+  group_by(cluster) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+# Graficar el bar chart de cantidad de entregas por cluster con etiquetas
+ggplot(cluster_counts, aes(x = reorder(cluster, -count), y = count, fill = cluster)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = count), vjust = -0.5, size = 5) +
+  labs(title = "Cantidad de entregas por cluster",
+       x = "Cluster",
+       y = "Cantidad de entregas") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, max(cluster_counts$count) * 1.1)  # Aumenta el límite superior del eje y
+```
+
+
+
+## Cobertura
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Convertir el DataFrame a un objeto espacial sf
+buenos_aires_sf <- buenos_aires_data %>%
+  st_as_sf(coords = c("longitud", "latitud"), crs = 4326)
+
+# Calcular el envolvente convexo (convex hull) para cada cluster
+clusters_hulls <- buenos_aires_sf %>%
+  group_by(cluster) %>%
+  summarise(geometry = st_combine(geometry)) %>%  # Combina las geometrías de cada cluster
+  st_convex_hull()  # Calcula el envolvente convexo
+
+# Calcular el número de puntos en cada cluster
+cluster_counts <- buenos_aires_data %>%
+  group_by(cluster) %>%
+  summarise(count = n())
+
+# Unir los conteos con los envolventes convexos
+clusters_hulls <- clusters_hulls %>%
+  left_join(cluster_counts, by = "cluster")
+
+# Obtener el centroide de cada polígono de cluster para posicionar las etiquetas
+clusters_hulls_centroids <- st_centroid(clusters_hulls)
+
+# Graficar
+ggplot() +
+  # Graficar los envolventes convexos
+  geom_sf(data = clusters_hulls, aes(fill = cluster), alpha = 0.3, color = NA) +
+  # Graficar los puntos de datos
+  geom_sf(data = buenos_aires_sf, aes(color = cluster), size = 0.5) +
+  # Agregar etiquetas con el número de puntos en cada cluster
+  geom_text(data = clusters_hulls_centroids,
+            aes(x = st_coordinates(geometry)[,1],
+                y = st_coordinates(geometry)[,2],
+                label = count),
+            size = 5, color = "black") +
+  labs(title = "Áreas cubiertas por cada cluster en Buenos Aires",
+       fill = "Cluster",
+       color = "Cluster") +
+  theme_minimal() +
+  coord_sf()
+
+```
+
+
+:::
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por dia_str y por cluster
+deliveries_per_day_cluster <- buenos_aires_data %>%
+  group_by(cluster, dia_str) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Graficar el bar chart de cantidad de entregas por dia_str y por cluster
+ggplot(deliveries_per_day_cluster, aes(x = dia_str, y = count, fill = cluster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Cantidad de entregas por día y por cluster",
+       x = "Día",
+       y = "Cantidad de entregas",
+       fill = "Cluster") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Calcular el número de entregas por cluster y por cliente
+deliveries_per_cluster_cliente <- buenos_aires_data %>%
+  group_by(cluster, cliente) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Graficar el bar chart de cantidad de entregas por cluster y por cliente
+ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor(cliente))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Cantidad de entregas por cluster y por cliente",
+       x = "Cluster",
+       y = "Cantidad de entregas",
+       fill = "Cliente") +
+  theme_minimal()
+```
+
+
+
+## PENDIENTE Estacionalidad y temporalidad.
+
+> ¿Existen patrones estacionales en la demanda de entregas (meses con mayor/menor volumen)?
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# 1. Filtrar valores faltantes en la columna 'fin_visita'
+df_date <- data %>% filter(!is.na(fin_visita))
+
+# 2. Convertir 'fin_visita' a fecha-hora y luego extraer solo la fecha
+df_date$fin_visita <- as.POSIXct(df_date$fin_visita, format = "%Y-%m-%d %H:%M:%S")
+df_date$fecha <- as.Date(df_date$fin_visita)  # Extraer la fecha sin horas
+
+# 3. Agrupar las entregas por día
+entregas_diarias <- df_date %>%
+  group_by(fecha) %>%
+  summarize(total_entregas = n())
+
+# 4. Completar días faltantes con 0 entregas
+rango_fechas <- seq(min(entregas_diarias$fecha), max(entregas_diarias$fecha), by = "day")
+
+entregas_completas <- data.frame(fecha = rango_fechas) %>%
+  left_join(entregas_diarias, by = "fecha") %>%
+  mutate(total_entregas = ifelse(is.na(total_entregas), 0, total_entregas))
+
+# 5. Crear la serie temporal diaria con frecuencia semanal (7 días)
+entregas_ts <- ts(
+  entregas_completas$total_entregas,
+  start = c(year(min(entregas_completas$fecha)), yday(min(entregas_completas$fecha))),
+  frequency = 7  # Frecuencia semanal
+)
+
+# 6. Descomponer la serie temporal usando STL
+descomposicion_stl <- stl(entregas_ts, s.window = "periodic")
+
+# 7. Graficar la descomposición STL
+autoplot(descomposicion_stl) +
+  ggtitle("Descomposición STL de la Serie de Tiempo Diaria")
+
+```
+
+```{r echo = FALSE}
+# 8. Graficar la función de autocorrelación (ACF)
+acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
+```
+
+
+
+> ¿El volumen de entregas varía significativamente entre diferentes meses del año?
+>
+> ¿Cómo varía la demanda entre diferentes semanas o meses?
+
+## PENDIENTE Eficiencia y Rendimiento Operativo
+
+> ¿Cuál es el tiempo promedio de entrega por cliente y por localidad?
+>
+> ¿Qué zonas presentan mayores retrasos o entregas fuera de tiempo?
+>
+> > Identifica áreas con posibles cuellos de botella logísticos.
+>
+> ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
+
+# Unidades de Transporte
+
+En los datos proporcionados no contamos con la información necesaria para realizar un análisis específico de las unidades de transporte, ya que sería indispensable disponer de un identificador único para cada vehículo. Sin embargo, incluimos esta sección como prueba de concepto para demostrar el valor que podría generar este tipo de análisis en la operación logística. Disponer de esta información permitiría evaluar aspectos fundamentales de la gestión de la flota, optimización de rutas y eficiencia operativa.
+
+A continuación, presentamos algunas preguntas clave que podrían responderse con un análisis detallado de las unidades de transporte:
+
+## **Preguntas sobre Desempeño y Utilización de la Flota**
+
+1.  **¿Cuánto tiempo real dedica cada unidad a entregas versus tiempo muerto (espera, carga, mantenimiento)?**
+
+2.  **¿Cuáles son los tiempos de ruta promedio por camión y cómo varían según la región?**
+
+3.  **¿Es necesaria la cantidad actual de camiones, o existe capacidad ociosa que podría aprovecharse?**
+
+4.  **¿Hay rutas o zonas específicas donde sería más eficiente reducir o ampliar la flota?**
+
+5.  **¿Qué porcentaje de las unidades completan sus rutas dentro de los tiempos planificados?**
+
+#### **Preguntas sobre Optimización de Rutas y Rendimiento**
+
+6.  **¿Se podrían consolidar entregas para reducir la cantidad de viajes sin afectar el servicio?**
+
+7.  **¿Existen unidades con rutas ineficientes que podrían optimizarse con ajustes?**
+
+8.  **¿Cuál es la relación entre la distancia recorrida y el volumen entregado por unidad?**
+
+9.  **¿Se podrían reducir tiempos muertos al mejorar la planificación de entregas o las ventanas horarias?**
+
+Si bien no contamos con la información completa sobre las unidades de transporte, hemos realizado estimaciones basadas en los datos disponibles y presentamos nuestro análisis como aproximación para obtener insights relevantes.
+
+> Ver las sedes de Iflow (que conocemos)
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Definir las coordenadas en la variable 'sedes'
+sedes <- data.frame(
+  lat = c(-34.4574168, -34.4312098, -34.4616837, -34.4616837),
+  lon = c(-58.7347338, -58.7254967, -58.7390698, -58.7390698),
+  zoom = c(14, NA, NA, 17) # Columna opcional para definir niveles de zoom
+)
+
+# Crear el mapa interactivo usando Plotly y Mapbox
+fig <- plot_ly(
+  data = sedes,
+  type = 'scattermapbox', # Define el tipo de gráfico
+  lat = ~lat,
+  lon = ~lon,
+  mode = 'markers', # Establece los puntos como marcadores
+  marker = list(size = 10, color = 'red') # Opcional: personalización de marcadores
+)
+
+# Añadir el estilo de Mapbox
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'open-street-map', # Puedes usar otros estilos como 'streets', 'satellite'
+      zoom = 10, # Nivel de zoom inicial
+      center = list(lat = mean(sedes$lat), lon = mean(sedes$lon)) # Centrar el mapa
+    )
+  )
+
+# Mostrar el gráfico
+fig
+
+```
+
+
+
+> Graficar la primera entrega de cada día. Graficar la primera y segunda entrega de cada día. Esperariamos que estas entregas rodeen cada sede. Entender su comportamiento.
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Suponiendo que 'data' tiene las columnas necesarias: 'fin_visita', 'latitud', 'longitud', 'cliente'
+primeras_entregas <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  filter(fin_visita == min(fin_visita)) %>%
+  ungroup()
+
+# Crear un mapa interactivo con Leaflet
+mapa_leaflet <- leaflet() %>%
+  addTiles() %>%
+  
+  # Agregar marcadores para las primeras entregas en azul
+  addCircleMarkers(
+    data = primeras_entregas,
+    ~longitud, ~latitud,
+    radius = 3,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  
+  # Agregar marcadores para las sedes en rojo
+  addCircleMarkers(
+    data = sedes,
+    ~lon, ~lat,
+    radius = 5,
+    color = "red",
+    fillOpacity = 1,
+    popup = ~paste("Sede")
+  ) %>%
+  
+  # Agregar la leyenda
+  addLegend(
+    "bottomright", 
+    colors = c("blue", "red"), 
+    labels = c("Primera Entrega", "Sede"), 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+
+Primera y segunda entrega de cada día
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Encontrar la primera y la segunda entrega de cada día
+entregas_dia <- data %>%
+  mutate(fecha = as.Date(fin_visita)) %>%
+  group_by(fecha) %>%
+  arrange(fin_visita) %>%  # Ordenar por hora de finalización
+  slice(1:2) %>%  # Seleccionar las dos primeras entregas
+  mutate(tipo = ifelse(row_number() == 1, "Primera Entrega", "Segunda Entrega")) %>%
+  ungroup()
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_dia) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Primera Entrega"),
+    ~longitud, ~latitud,
+    radius = 3,
+    color = "blue",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addCircleMarkers(
+    data = entregas_dia %>% filter(tipo == "Segunda Entrega"),
+    ~longitud, ~latitud,
+    radius = 5,
+    color = "red",
+    fillOpacity = 0.8,
+    popup = ~paste("Fecha:", fecha, "<br>Cliente:", cliente, "<br>Hora:", fin_visita)
+  ) %>%
+  addLegend(
+    "bottomright", 
+    colors = c("blue", "red"), 
+    labels = c("Primera Entrega", "Segunda Entrega"), 
+    title = "Leyenda"
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+
+> Grafico de orden de las entregas de un día en específico.
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Parámetros: Selección de fecha específica y cantidad de entregas 
+fecha_seleccionada <- as.Date("2024-05-23")  
+n_entregas <- 20
+```
+
+
+
+::: panel-tabset
+## Ocultar tiempo entre entregas
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar las entregas para la fecha seleccionada y ordenarlas por hora
+entregas_fecha <- data %>%
+  filter(as.Date(fin_visita) == fecha_seleccionada) %>%
+  arrange(fin_visita) %>%
+  slice(1:n_entregas) %>%
+  mutate(
+    orden = row_number(),  # Agregar el orden de entrega
+    tiempo_transcurrido = c(NA, diff(fin_visita) / 60)  # Calcular minutos entre entregas
+  )
+
+# Crear la paleta de colores basada en el valor del cliente
+paleta_colores <- colorFactor(
+  palette = c("red", "green"),  # Asignar colores específicos
+  domain = entregas_fecha$cliente  # Basado en los valores de la columna cliente
+)
+
+# Crear etiquetas de tiempo entre entregas para colocarlas en las líneas
+etiquetas_lineas <- entregas_fecha %>%
+  filter(!is.na(tiempo_transcurrido)) %>%  # Excluir la primera entrega (sin tiempo anterior)
+  mutate(
+    lat_medio = (latitud + lag(latitud)) / 2,
+    lng_medio = (longitud + lag(longitud)) / 2,
+    etiqueta_tiempo = paste0(round(tiempo_transcurrido, 2), " min")
+  ) %>%
+  na.omit()  # Remover filas con NA (la primera fila)
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_fecha) %>%
+  addTiles() %>%
+  # Agregar puntos con colores basados en el cliente y etiquetas personalizadas
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 8,
+    color = "black",
+    fillColor = ~paleta_colores(cliente),
+    fillOpacity = 0.8,
+    label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "center", 
+      textOnly = TRUE,
+      style = list(
+        "font-size" = "13px",
+        "font-weight" = "bold",
+        "color" = "white",
+        "border-radius" = "100%",
+        "padding" = "12px"
+      )
+    ),
+    # Mostrar la hora exacta y tiempo transcurrido como popup
+    popup = ~paste(
+      "Hora de Entrega:", format(fin_visita, "%H:%M:%S"),
+      "<br>Cliente:", cliente,
+      "<br>Tiempo desde la última entrega:", 
+      ifelse(is.na(tiempo_transcurrido), "N/A", 
+             paste(round(tiempo_transcurrido, 2), "min"))
+    )
+  ) %>%
+  # Agregar líneas que conecten las entregas en orden
+  addPolylines(
+    lng = ~longitud, lat = ~latitud,
+    data = entregas_fecha,
+    color = "blue", weight = 2
+  ) %>%
+  # Agregar una leyenda para los clientes
+  addLegend(
+    "bottomright", 
+    pal = paleta_colores, 
+    values = ~cliente, 
+    title = "Cliente", 
+    opacity = 1
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+
+## Mostrar tiempo entre entregas
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar las entregas para la fecha seleccionada y ordenarlas por hora
+entregas_fecha <- data %>%
+  filter(as.Date(fin_visita) == fecha_seleccionada) %>%
+  arrange(fin_visita) %>%
+  slice(1:n_entregas) %>%
+  mutate(
+    orden = row_number(),  # Agregar el orden de entrega
+    tiempo_transcurrido = c(NA, diff(fin_visita) / 60)  # Calcular minutos entre entregas
+  )
+
+# Crear la paleta de colores basada en el valor del cliente
+paleta_colores <- colorFactor(
+  palette = c("red", "green"),  # Asignar colores específicos
+  domain = entregas_fecha$cliente  # Basado en los valores de la columna cliente
+)
+
+# Crear etiquetas de tiempo entre entregas para colocarlas en las líneas
+etiquetas_lineas <- entregas_fecha %>%
+  filter(!is.na(tiempo_transcurrido)) %>%  # Excluir la primera entrega (sin tiempo anterior)
+  mutate(
+    lat_medio = (latitud + lag(latitud)) / 2,
+    lng_medio = (longitud + lag(longitud)) / 2,
+    etiqueta_tiempo = paste0(round(tiempo_transcurrido, 2), " min")
+  ) %>%
+  na.omit()  # Remover filas con NA (la primera fila)
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_fecha) %>%
+  addTiles() %>%
+  # Agregar puntos con colores basados en el cliente y etiquetas personalizadas
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 8,
+    color = "black",
+    fillColor = ~paleta_colores(cliente),
+    fillOpacity = 0.8,
+    label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "center", 
+      textOnly = TRUE,
+      style = list(
+        "font-size" = "13px",
+        "font-weight" = "bold",
+        "color" = "white",
+        "border-radius" = "100%",
+        "padding" = "12px"
+      )
+    ),
+    # Mostrar la hora exacta y tiempo transcurrido como popup
+    popup = ~paste(
+      "Hora de Entrega:", format(fin_visita, "%H:%M:%S"),
+      "<br>Cliente:", cliente,
+      "<br>Tiempo desde la última entrega:", 
+      ifelse(is.na(tiempo_transcurrido), "N/A", 
+             paste(round(tiempo_transcurrido, 2), "min"))
+    )
+  ) %>%
+  # Agregar líneas que conecten las entregas en orden
+  addPolylines(
+    lng = ~longitud, lat = ~latitud,
+    data = entregas_fecha,
+    color = "blue", weight = 2
+  ) %>%
+  # Agregar etiquetas sobre las líneas con tiempo transcurrido
+  addLabelOnlyMarkers(
+    lng = ~lng_medio, lat = ~lat_medio,
+    label = ~etiqueta_tiempo,
+    data = etiquetas_lineas,
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "top", 
+      style = list(
+        "font-size" = "10px",
+        "font-weight" = "bold",
+        "color" = "blue"
+      )
+    )
+  ) %>%
+  # Agregar una leyenda para los clientes
+  addLegend(
+    "bottomright", 
+    pal = paleta_colores, 
+    values = ~cliente, 
+    title = "Cliente", 
+    opacity = 1
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+:::
+
+> Conclusiones:
+>
+> -   Parece que los camiones no mezclan productos del cliente 20 y 70.
+>
+> -   Tiempos muertos, identificar trayectorias por distancia.
+>
+> -   Errores de carga cuando hay localidades consecutivas.
+>
+> Grafico de trayectoria en orden para cada cliente. Identificar puntos que demuestran rutas poco eficientes. Cruces de lineas, tiempo perdido.
+>
+> Graficar tiempo entre entregas por hora del día. (Tiempo muerto)
+>
+> Ampliar u organizar nuevos centros de distribución. (En base a los datos de estos dos clientes), Segmentación de entregas (global y por cliente) para identificar puntos donde sería ideal. (Centro de zona, cruce de zonas, cluster con más o menor actividad)
+
+## Intentos de identificar transportistas.
+
+A priori y para facilitar el análisis podríamos suponer que las entregas las realizan dos camiones. Uno para cada cliente. Podemos validar que esto es incorrecto al estudiar las entregas de un único cliente.
+
+
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar las entregas para la fecha seleccionada y ordenarlas por hora
+entregas_fecha <- data %>%
+  filter(as.Date(fin_visita) == fecha_seleccionada,
+         cliente == 20) %>%
+  arrange(fin_visita) %>%
+  slice(1:n_entregas) %>%
+  mutate(
+    orden = row_number(),  # Agregar el orden de entrega
+    tiempo_transcurrido = c(NA, diff(fin_visita) / 60)  # Calcular minutos entre entregas
+  )
+
+# Crear etiquetas de tiempo entre entregas para colocarlas en las líneas
+etiquetas_lineas <- entregas_fecha %>%
+  filter(!is.na(tiempo_transcurrido)) %>%  # Excluir la primera entrega (sin tiempo anterior)
+  mutate(
+    lat_medio = (latitud + lag(latitud)) / 2,
+    lng_medio = (longitud + lag(longitud)) / 2,
+    etiqueta_tiempo = paste0(round(tiempo_transcurrido, 2), " min")
+  ) %>%
+  na.omit()  # Remover filas con NA (la primera fila)
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_fecha) %>%
+  addTiles() %>%
+  # Agregar puntos con colores basados en el cliente y etiquetas personalizadas
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 8,
+    color = "red",
+    label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "center", 
+      textOnly = TRUE,
+      style = list(
+        "font-size" = "13px",
+        "font-weight" = "bold",
+        "color" = "white",
+        "border-radius" = "100%",
+        "padding" = "12px"
+      )
+    ),
+    # Mostrar la hora exacta y tiempo transcurrido como popup
+    popup = ~paste(
+      "Hora de Entrega:", format(fin_visita, "%H:%M:%S"),
+      "<br>Cliente:", cliente,
+      "<br>Tiempo desde la última entrega:", 
+      ifelse(is.na(tiempo_transcurrido), "N/A", 
+             paste(round(tiempo_transcurrido, 2), "min"))
+    )
+  ) %>%
+  # Agregar líneas que conecten las entregas en orden
+  addPolylines(
+    lng = ~longitud, lat = ~latitud,
+    data = entregas_fecha,
+    color = "blue", weight = 2
+  ) %>%
+  # Agregar una leyenda para los clientes
+  addLegend(
+    "bottomright", 
+    pal = paleta_colores, 
+    values = ~cliente, 
+    title = "Cliente", 
+    opacity = 1
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+
+Vemos que entre la entrega 18 y 19 pasaron menos de 3min
+
+Hay algunos casos donde podemos identificar camiones distintos:
+
+-   Grandes distancias en poco tiempo.
+
+-   Cruces de rutas.
+
+Los cruces de trayectorias podrían indicar rutas ineficientes de los repartidores o que se estan siguiendo varios repartidores en la misma ruta. Podemos verlo de forma clara en el siguiente gráfico:
+
+
+
+```{r echo=FALSE}
+# Filtrar las entregas para la fecha seleccionada y ordenarlas por hora
+entregas_fecha <- data %>%
+  filter(as.Date(fin_visita) == fecha_seleccionada,
+         cliente == 70) %>%
+  arrange(fin_visita) %>%
+  slice(1:n_entregas) %>%
+  mutate(
+    orden = row_number(),  # Agregar el orden de entrega
+    tiempo_transcurrido = c(NA, diff(fin_visita) / 60)  # Calcular minutos entre entregas
+  )
+
+# Crear etiquetas de tiempo entre entregas para colocarlas en las líneas
+etiquetas_lineas <- entregas_fecha %>%
+  filter(!is.na(tiempo_transcurrido)) %>%  # Excluir la primera entrega (sin tiempo anterior)
+  mutate(
+    lat_medio = (latitud + lag(latitud)) / 2,
+    lng_medio = (longitud + lag(longitud)) / 2,
+    etiqueta_tiempo = paste0(round(tiempo_transcurrido, 2), " min")
+  ) %>%
+  na.omit()  # Remover filas con NA (la primera fila)
+
+# Crear el mapa interactivo con Leaflet
+mapa_leaflet <- leaflet(data = entregas_fecha) %>%
+  addTiles() %>%
+  # Agregar puntos con colores basados en el cliente y etiquetas personalizadas
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    radius = 8,
+    color = "blue",
+    label = ~as.character(orden),  # Mostrar el número de orden como etiqueta
+    labelOptions = labelOptions(
+      noHide = TRUE, 
+      direction = "center", 
+      textOnly = TRUE,
+      style = list(
+        "font-size" = "13px",
+        "font-weight" = "bold",
+        "color" = "white",
+        "border-radius" = "100%",
+        "padding" = "12px"
+      )
+    ),
+    # Mostrar la hora exacta y tiempo transcurrido como popup
+    popup = ~paste(
+      "Hora de Entrega:", format(fin_visita, "%H:%M:%S"),
+      "<br>Cliente:", cliente,
+      "<br>Tiempo desde la última entrega:", 
+      ifelse(is.na(tiempo_transcurrido), "N/A", 
+             paste(round(tiempo_transcurrido, 2), "min"))
+    )
+  ) %>%
+  # Agregar líneas que conecten las entregas en orden
+  addPolylines(
+    lng = ~longitud, lat = ~latitud,
+    data = entregas_fecha,
+    color = "blue", weight = 2
+  ) %>%
+  # Agregar una leyenda para los clientes
+  addLegend(
+    "bottomright", 
+    pal = paleta_colores, 
+    values = ~cliente, 
+    title = "Cliente", 
+    opacity = 1
+  )
+
+# Mostrar el mapa
+mapa_leaflet
+```
+
+
+
+Habiendo identificado estas caracteristicas podríamos utilizar un modelo de agrupamiento para estimar distintos repartidores y sus trayectorias.
+
+Esto tiene un gran valor para:
+
+1.  Identificar rutas ineficientes.
+2.  Estimar un tiempo de duración de cada entrega (Y rellenar vacios)
+3.  Identificar patrones en los errores de carga de datos (Duración de entregas)
+
+Para la aplicación practica de estos analisis sería vital tener acceso real a los camiones o repartidores responsables de cada entrega pero para el bien de este analisis intentamos aproximar lo más posible a estos datos utilizando modelos estadisticos. Esperamos sirva como prueba de concepto para evaluar el potencial de recolectar estos datos.
+
+Esto nos presenta un problema que podría solucionarse con coloración de grafos.
+
+![](images/clipboard-469233549.png)
+
+**Construir el grafo de conflictos:**
+
+-   **Nodos:** Cada nodo representa una entrega individual con su respectiva latitud, longitud, fecha y hora.
+
+-   **Aristas (conflictos):** Se dibuja una arista entre dos entregas si es imposible que hayan sido realizadas por el mismo repartidor debido a restricciones de tiempo y distancia.
+
+    -   **Criterio de conflicto:** Para dos entregas AAA y BBB, se calcula el tiempo mínimo necesario para que un repartidor viaje desde la ubicación de AAA a BBB considerando una velocidad razonable (por ejemplo, la velocidad promedio de un vehículo en esa área).
+
+    -   Si el tiempo transcurrido entre la hora de entrega de AAA y BBB es menor que el tiempo mínimo de viaje calculado, entonces se establece un conflicto entre AAA y BBB.
+
+**Algoritmos sugeridos:**
+
+-   **Algoritmo Greedy de coloreo:** Un enfoque sencillo que asigna colores a los nodos de forma secuencial, utilizando el menor número de colores posible en cada paso.
+
+-   **Heurísticas avanzadas:** Si el grafo es grande y complejo, pueden emplearse algoritmos como DSATUR o técnicas metaheurísticas (algoritmos genéticos, recocido simulado) para aproximar una solución cercana al mínimo número de colores.
+
+Algunos resultados obtenidos utilizando el algoritmo Greedy de coloreo con python:
+
+![](images/clipboard-1974703472.png)
+
+Si bien funciona correctamente para alrededor de 20 entregas a medida que agregamos datos se dificulta el algoritmo y considerando las incosistencias de los datos y errores de carga no sería adecuado estimar usando este algoritmo en su estado actual.
+
+![](images/clipboard-2717980469.png)
+
+Algunas consideraciones.
+
+-   Toma en cuenta una velocidad promedio de los camiones arbitraira
+
+Si bien podría ser interesante utilizar un algoritmo para resolver o estimar el problema. Evidentmente la mejor solución es tomar los datos de UNIGIS o un software automatico. De todas formas no se podrá extraer valor real con datos de tiempo erroneos.
+
+Esta estimación nos presenta algunas preguntas sobre factores de las entregas.
+
+1.  Rutas optimizadas.
+
+    Gracias al análisis podemos ver que las rutas estan optimizadas pero parecen estar diseñadas para transportistas individuales y no para la flota como grupo. Optimizar las rutas de entregas para toda la flota como un ente es distinto a diseñar la ruta para cada camion entre dos puntos.
+
+# Conclusiones
+
+# Apéndice
+
+<https://www.youtube.com/watch?v=V8eXoIFcMgM>
+
+Incluir enlace interno para versión del trabajo con el codigo y comentarios.
+
+Incluir el enlace al repositorio de Github
+
+Referencias de estudio sobre Lastmile logistics, ETL in logistics y clustering geoespacial DBSCAN, H3 oreilly
+
