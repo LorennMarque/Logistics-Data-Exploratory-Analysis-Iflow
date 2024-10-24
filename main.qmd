@@ -1,11 +1,19 @@
 ---
-title: "Análisis de Datos"
-format: html
-editor: visual
-toc: true
-toc-location: left
-number-sections: true
-theme: Darkly
+title: "Caso de estudio | Iflow"
+date: "`r Sys.Date()`"  # Inserta la fecha automáticamente
+format: 
+  html:
+    theme: darkly
+    toc: true
+    toc-location: left
+    number-sections: true
+    code-fold: true        # Permitir plegado de bloques de código
+    code-tools: true       # Mostrar herramientas de copiado en los bloques de código
+    smooth-scroll: true    # Habilitar desplazamiento suave al navegar por el índice
+    fig-align: center      # Alinear las figuras al centro
+    toc-depth: 3           # Profundidad máxima del índice
+lang: es                   # Establecer idioma del documento
+editor: visual             # Editor visual habilitado
 ---
 
 ```{r,warning=FALSE,echo=FALSE, output=FALSE}
@@ -43,43 +51,17 @@ En el marco del **Primer Desafío Internacional de la Red Latinoamericana de Cie
 
 El **objeto de estudio** es un conjunto de datos proporcionado por **iFlow**, una empresa argentina especializada en logística integral, con operaciones tanto nacionales como internacionales dentro del MERCOSUR. iFlow se dedica a la gestión y co-gerencia de cadenas de abastecimiento para sus clientes, buscando optimizar procesos y mejorar la eficiencia operativa.
 
-## Objetivo del análisis
-
 Este análisis tiene como objetivo:
 
-1.  **Comprender y describir** las principales características del conjunto de datos, que incluye **27.484 registros de entregas** realizadas en un período de tres meses.
+1.  **Comprender y describir** las principales características del conjunto de datos, que incluye registros de entregas realizadas en un período de tres meses.
 
 2.  **Identificar patrones y tendencias** que permitan obtener insights relevantes sobre las operaciones de iFlow.
 
 3.  **Detectar posibles inconsistencias o errores** en la base de datos, propias de un entorno operativo real, para evaluarlas e integrarlas al análisis.
 
-## Metodología y Alcance
-
-Se trabajará con información detallada de las entregas, incluyendo aspectos como dirección, localidad, coordenadas geográficas, bultos, peso y unidades transportadas, así como los tiempos de inicio y finalización de cada entrega. A partir de estos datos se buscará:
-
--   Visualizar y analizar la eficiencia operativa.
-
--   Detectar áreas de mejora en los procesos logísticos.
-
--   Proponer soluciones basadas en evidencia que contribuyan a la optimización del servicio.
-
-Este trabajo culminará con la presentación de los hallazgos y recomendaciones, cuyo objetivo final es fortalecer la capacidad operativa de iFlow, mejorando su eficiencia y calidad de servicio en el entorno competitivo del MERCOSUR.
-
 # Limpieza de datos.
 
-La primera etapa de este análisis consistió en la **limpieza de datos**, un proceso esencial para garantizar la calidad y fiabilidad de los resultados. Dado que la base proporcionada por **iFlow** contiene información real sobre 27.484 entregas realizadas en un período de tres meses, nos enfocamos en **identificar problemas comunes** como:
-
--   **Valores faltantes:** Campos incompletos que podrían afectar el análisis.
-
--   **Duplicados:** Registros repetidos que distorsionan los resultados.
-
--   **Inconsistencias:** Errores en el formato o contenido de los datos (por ejemplo, coordenadas geográficas incorrectas o tiempos de entrega incoherentes).
-
--   **Outliers:** Valores atípicos que requieren evaluación para determinar si corresponden a errores o situaciones reales.
-
-Una vez detectados estos problemas, aplicamos las transformaciones necesarias, como la eliminación de duplicados, la corrección de formatos y la imputación o exclusión de valores faltantes según el caso. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.
-
-## Problemas encontrados.
+La primera etapa de este análisis consistió en la **limpieza de datos**. Este proceso de limpieza fue clave para preparar los datos para un análisis exploratorio robusto y la generación de insights confiables sobre la operación logística de iFlow.
 
 En primer lugar realizamos algunos cambios para **facilitar el trabajo** con los datos.
 
@@ -150,7 +132,7 @@ data <- data %>%
   distinct()
 ```
 
--   Arreglo de valores faltantes en coordenadas.
+-   Arreglo de coordenadas faltantes en algunas entregas.
 
     El dato de coordenadas en algunas filas estaba vacio o indicaba "0". En algunos de estos casos pudimos rellenar estas coordenadas con datos existentes del domicilio (21 filas). En caso de que esto no sea posible las filas fueron eliminadas (19 filas) y no serán tomadas en cuenta para el análisis.
 
@@ -255,12 +237,6 @@ data <- data %>%
 # write.csv(x = data, file = "iflow_clean.csv")
 ```
 
-## Observaciones y sugerencias.
-
-1.  Un gran porcentaje de las entregas tienen registrado el mismo horario para el inicio y final de la visitas.
-
-    Esto puede deberse a la carga apresurada por parte de los repartidores o a un sistema poco eficiente de carga. Podría solucionarse con mejoras de interfaz o flujo de carga.
-
 ```{r,warning=FALSE,echo=FALSE}
 data <- read.csv("data/clean_iflow_data.csv")
 ```
@@ -280,7 +256,7 @@ dim(data %>% filter(cliente==70))
 
 Se registraron 27.419 entregas de dos clientes distintos: 16,545 del cliente 20 y 10.874 del cliente 70.
 
-> En que plazo estamos hablando, fecha de la primera entrega y la última?
+Todas estas entregas fueron realizadas entre el 3 de mayo y 8 de agosto de 2024, con un promedio de 9.005 entregas por mes
 
 ```{r,warning=FALSE,echo=FALSE, output=FALSE}
 # Ensure fin_visita is in the correct POSIXct format
@@ -295,13 +271,7 @@ data %>%
 
 ```
 
-Primera visita en 2024-05-03 08:08:53. El 3 de Mayo.
-
-Última visita en 2024-08-06 16:57:00. El 8 de Agosto.
-
 ![](images/timelien.png)
-
-Con un promedio de X entregas por mes y ...
 
 ::: panel-tabset
 ## Entregas por cliente
@@ -315,7 +285,7 @@ data <- data %>%
 # Agrupar por mes y contar la cantidad de entregas
 entregas_por_mes <- data %>%
   group_by(mes, cliente) %>%
-  summarise(n = n())
+  summarise(n = n(),  .groups = "drop")
 
 entregas_por_mes$cliente <- as.factor(entregas_por_mes$cliente)
 
@@ -341,7 +311,7 @@ data <- data %>%
 # Agrupar por mes y contar la cantidad de entregas
 entregas_por_mes <- data %>%
   group_by(mes) %>%
-  summarise(n = n())
+  summarise(n = n(),  .groups = "drop")
 
 # Crear el gráfico de barras
 ggplot(entregas_por_mes, aes(x = mes, y = n)) +
@@ -354,6 +324,300 @@ ggplot(entregas_por_mes, aes(x = mes, y = n)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 :::
+
+## ¿Cuales son los horarios de entrega?
+
+```{r, warning=FALSE, echo=FALSE}
+# Agrupar los datos por día y hora para contar ocurrencias
+resumen <- data %>%
+  group_by(dia_str, hora) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  ungroup()
+
+# Asegurar el orden correcto de los días (Lunes a Domingo)
+resumen$dia_str <- factor(resumen$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", 
+                                      "jueves", "viernes", "sábado", "domingo"))
+
+resumen <- resumen %>% filter(!is.na(dia_str), dia_str != "domingo")
+
+
+ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis(option = "C", direction = 1) +
+  labs(title = "Entregas por día y hora", 
+       x = "Hora del día", 
+       y = "Día de la semana", 
+       fill = "Cantidad") +
+  theme_minimal()
+```
+
+El dia con más entregas es el miercoles cerca de las 15:00
+
+```{r,warning=FALSE,echo=FALSE}
+# Convertir la columna dia_str en un factor ordenado
+data <- data %>%
+  mutate(dia_str = factor(dia_str, 
+                          levels = c("lunes", "martes", "miércoles", 
+                                     "jueves", "viernes", "sábado","domingo")))
+
+# Agrupar por el nombre del día y contar las entregas
+entregas_por_dia <- data %>%
+  group_by(dia_str) %>%
+  summarise(n = n())
+
+# Crear el gráfico de barras
+ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
+  geom_bar(stat = "identity", fill = "#94C11F") +
+  labs(title = "Cantidad de Entregas por Día de la Semana",
+       x = "Día de la Semana",
+       y = "Número de Entregas") +
+  theme_minimal()
+```
+
+Vemos que el domingo hay solo 3 entregas. Esto podría deberse a un error por lo que las revisamos.
+
+```{r,warning=FALSE,echo=FALSE, output=FALSE}
+data %>% filter(dia_str == "domingo")
+```
+
+| Orden  | Localidad       | Fecha y hora de entrega |
+|--------|-----------------|-------------------------|
+| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00     |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00     |
+| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00     |
+
+Al revisar estas entregas encontramos que las tres fueron entregadas a las 23:51. Esto podría deberse a un error en la carga de datos o a entregas especiales. Al ser las últimas entregas del día puede deberse a un cierre automático del sistema despues de haber dejado entregas inciadas el día anterior sin marcar su finalización.
+
+Si bien este parece ser un caso puntual existen dos grandes problemas respecto a los horarios y duración de las entregas. Estos problemas son.
+
+1.  **Duración de las entregas:** Muchas entregas tienen el mismo horario de inicio y fin. Esto puede deberse a errores en la carga de datos o a un sistema de carga poco eficiente.
+
+2.  **Entregas consecutivas:** Muchas entregas consecutivas fueron cargadas con el horario de la entrega anterior. Esto dificulta la identificación de rutas, estimación de tiempos muertos y duraciones reales entre entregas.
+
+## Errores de carga en horarios de entrega.
+
+Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
+
+Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
+
+Horarios cargados de forma incorrecta podrian causar:
+
+1.  Mala estimación sobre tiempos muertos.
+2.  Dificulta optimizar los procesos de entrega.
+3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
+
+Algunas sugerencias e ideas para mejorar esto incluyen:
+
+-   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
+
+-   Implementación de un sistema de validación de los datos para evitar duplicados.
+
+-   Desarrollo y uso de hardware específico para la carga de datos.
+
+> ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
+
+```{r, warning=FALSE, echo=FALSE}
+# dim(data %>% filter(inicio_visita != fin_visita)) # 17142
+
+# data %>% filter(inicio_visita == fin_visita) # 10255
+
+# Calcular los totales y proporciones
+total <- nrow(data) # Total de filas
+dif_visit <- nrow(data %>% filter(inicio_visita != fin_visita)) # 17142 filas diferentes
+igual_visit <- nrow(data %>% filter(inicio_visita == fin_visita)) # Filas iguales
+
+# Crear un dataframe con los resultados
+resumen <- data.frame(
+  Categoria = c("Inicio ≠ Fin", "Inicio = Fin"),
+  Conteo = c(dif_visit, igual_visit)
+)
+
+# Calcular el porcentaje para cada categoría
+resumen$Porcentaje <- round((resumen$Conteo / total) * 100, 2)
+
+# Crear el gráfico de barras
+ggplot(resumen, aes(x = Categoria, y = Conteo, fill = Categoria)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(Porcentaje, "%")), 
+            vjust = -0.5, size = 5) +  # Etiquetas con porcentaje arriba de las barras
+  labs(title = "Comparación de visitas", 
+       x = "Categoría", 
+       y = "Cantidad de visitas") +
+  theme_minimal()
+
+
+```
+
+Bien cargados 17142 vs mal cargados 10255 mal. Pero encontramos que son incluso más. Una forma de solucionarlo podría haber sido ordenar las entregas en orden cronologico e intentar estimar la duración real segun el tiempo entre las entregas y la distancia entre ellas pero al intentar esto encontramos que muchas entregas consecutivas arrastran errores. Dificultando la identificación de rutas, estimación de tiempos muertos y duraciones reales entre entregas.
+
+```{r, warning=FALSE, echo=FALSE, output=FALSE}
+# Ordenar los datos cronológicamente (asumo que tienes una columna de timestamp)
+data_ordenada <- data %>%
+  arrange(inicio_visita)
+
+# Crear una columna que identifique si el fin_visita es igual al de la fila anterior
+data_secuencia <- data_ordenada %>%
+  mutate(
+    consecutivo = (fin_visita == lag(fin_visita, default = first(fin_visita)))
+  )
+
+# Crear un identificador para cada grupo consecutivo con el mismo fin_visita
+data_secuencia <- data_secuencia %>%
+  mutate(
+    grupo = cumsum(!consecutivo)  # Incrementar grupo cuando cambia fin_visita
+  )
+
+# Resumir el número de filas en cada grupo consecutivo
+resumen_secuencias <- data_secuencia %>%
+  group_by(fin_visita, grupo) %>%
+  summarise(cantidad = n(), .groups = "drop")
+
+# Mostrar las secuencias más largas
+resumen_secuencias %>%
+  arrange(desc(cantidad))
+
+filtered_amounts <- resumen_secuencias %>% filter(cantidad != 1)
+```
+
+Como referencia, el día 2024-06-27 16:06:00 hay 23 entregas graficadas el mismo día.
+
+::: panel-tabset
+## Ejemplo 50 entregas
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-12 16:12:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+
+## Ejemplo 23 entregas
+
+```{r, warning=FALSE, echo=FALSE}
+ #Cargar librerías necesarias
+library(leaflet)
+library(dplyr)
+# Filtrar las entregas según el fin_visita elegido
+fin_visita_elegido <- "2024-06-27 16:06:00"  # Cambia este valor por el deseado
+
+entregas_filtradas <- data %>%
+  filter(fin_visita == fin_visita_elegido)
+
+# Verificar si hay datos para graficar
+if (nrow(entregas_filtradas) == 0) {
+  print("No hay entregas con el fin_visita seleccionado.")
+} else {
+  # Crear el mapa interactivo con Leaflet
+  leaflet(data = entregas_filtradas) %>%
+    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
+    addCircleMarkers(
+      lng = ~longitud, lat = ~latitud,  # Coordenadas
+      radius = 6, color = "blue", stroke = FALSE, 
+      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
+      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
+      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
+    ) 
+}
+```
+:::
+
+¿Que tan frecuente es este error? Muy frecuentes
+
+```{r, warning=FALSE, echo=FALSE}
+# Asegurarse de que no haya NAs en la columna 'cantidad'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(cantidad), cantidad != 1)
+
+# Crear la columna 'categoria' con las condiciones bien definidas
+resumen_secuencias <- resumen_secuencias %>%
+  mutate(
+    categoria = case_when(
+      cantidad == 2 ~ "2",
+      cantidad >= 3 & cantidad <= 5 ~ "De 3 a 5",
+      cantidad >= 6 & cantidad <= 10 ~ "De 6 a 10",
+      cantidad >= 11 & cantidad <= 20 ~ "De 11 a 20",
+      cantidad > 20 ~ "Más de 20"
+    )
+  )
+
+# Verificar si hay NAs en la columna 'categoria'
+resumen_secuencias <- resumen_secuencias %>%
+  filter(!is.na(categoria))
+
+# Crear el gráfico de barras con las categorías corregidas
+ggplot(resumen_secuencias, aes(x = categoria)) +
+  geom_bar(fill = "#94C11F", color = "black", alpha = 0.8) +
+  labs(
+    title = "Distribución de Secuencias por Categoría",
+    x = "Categoría de cantidad",
+    y = "Frecuencia"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
+
+```
+
+Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
+
+Al desconfiar del 46.67% de los datos es dificil y poco preciso cualquier tipo de analisis sobre la eficiencia operativa de las entregas. Esto puede traer posibles problemas como:
+
+1.  Problema 1
+2.  Problema 2
+
+Solucionar esta situacion representa una gran oportunidad y facilitaria exponencialmente el crecimiento de la empresa, precision de las ventanas de entrega, identificación de cuellos de botella reales y a final de cuentas la toma de decisiones operativas.
+
+> "Lo que no se mide, no se puede mejorar." - Peter F. Drucker
+
+A continuación listamos algunos posibles motivos y oportunidades para corregir la situación.
+
+1.  Manual de uso y capacitación sobre el sistema [UNIGIS](https://www.unigis.com/ "Sitio web oficial de Unigis")
+
+Basandonos en el [Manual de transportistas - Elementos de seguridad y APPS](https://transportes.iflow21.com/portal/es/kb/articles/manual-de-transportistas-elementos-de-seguridad-y-apps) encontramos la siguiente referencia sobre el uso de la aplicación.
+
+![](images/user_manual.png)
+
+Capacitar mejor al personal con mayor cantidad de recursos, claridad en los instructivos y videos demostrando el uso correcto del sistema [videos demostrando el uso correcto del sistema](https://www.youtube.com/watch?v=JnEHVHhs6V4 "Video grabado por Corporación Aceros Arequipa para su equipo") mejoraría la precision de la carga de los datos en el futuro.
+
+2.  Creación de una interfaz personalizada para Unigis.
+
+El error de carga de horarios iguales en entregas consecutivas puede deberse principalmente a la dificultad de uso del sistema o poca practicidad del mismo por la que los transportistas podrían saltear los pasos del instructivo.
+
+Si migrar a un nuevo sistema más moderno es una alternativa muy costosa podrían considerar hacer una inversión en desarrollo frontend para, utilizando la API del sistema actual, puedan tener una interfaz más amena a los transportistas.
+
+[![Referencia del Uso de la API cloud de Unigis](images/postman_reference.png)](https://www.postman.com/irampoldi/unigis/request/8833s18/reportedeviajes)
+
+El desarrollo de una interfaz personalizada para interactuar con su sistema actual podría ser una inversión considerable pero economica contrastando con la posibilidad de un desarrollo personalizado o la migración a un nuevo sistema.
+
+Algunas consideraciones:
+
+-   Inversión en equipo e investigación UX para asegurar el uso intuitivo de los transportistas. Es importante entender como es el uso del sistema en la practica.
+
+3.  Migrar a un sistema más moderno o diseñar uno a medida para sus necesidades.
+
+    Puede ser la opción mas costosa.
+
+## Información de bultos y peso.
 
 > ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
 
@@ -416,6 +680,8 @@ ggplot(data, aes(x = peso)) +
 mean(data$peso) # Promedio
 ```
 :::
+
+## Distribución geográfica de las entregas.
 
 > ¿Cuál es la distribución de entregas por localidad o región?
 
@@ -656,237 +922,6 @@ fig
 ![](images/screen.png)
 :::
 
-> ¿Cuál es el tiempo promedio entre el inicio y fin de las visitas de entrega?
-
-```{r, warning=FALSE, echo=FALSE}
-# dim(data %>% filter(inicio_visita != fin_visita)) # 17142
-
-# data %>% filter(inicio_visita == fin_visita) # 10255
-
-# Calcular los totales y proporciones
-total <- nrow(data) # Total de filas
-dif_visit <- nrow(data %>% filter(inicio_visita != fin_visita)) # 17142 filas diferentes
-igual_visit <- nrow(data %>% filter(inicio_visita == fin_visita)) # Filas iguales
-
-# Crear un dataframe con los resultados
-resumen <- data.frame(
-  Categoria = c("Inicio ≠ Fin", "Inicio = Fin"),
-  Conteo = c(dif_visit, igual_visit)
-)
-
-# Calcular el porcentaje para cada categoría
-resumen$Porcentaje <- round((resumen$Conteo / total) * 100, 2)
-
-# Crear el gráfico de barras
-ggplot(resumen, aes(x = Categoria, y = Conteo, fill = Categoria)) +
-  geom_bar(stat = "identity", width = 0.6) +
-  geom_text(aes(label = paste0(Porcentaje, "%")), 
-            vjust = -0.5, size = 5) +  # Etiquetas con porcentaje arriba de las barras
-  labs(title = "Comparación de visitas", 
-       x = "Categoría", 
-       y = "Cantidad de visitas") +
-  theme_minimal()
-
-
-```
-
-Bien cargados 17142 vs mal cargados 10255 mal. Pero encontramos que son incluso más. Una forma de solucionarlo podría haber sido ordenar las entregas en orden cronologico e intentar estimar la duración real segun el tiempo entre las entregas y la distancia entre ellas pero al intentar esto encontramos que muchas entregas consecutivas arrastran errores. Dificultando la identificación de rutas, estimación de tiempos muertos y duraciones reales entre entregas.
-
-```{r, warning=FALSE, echo=FALSE, output=FALSE}
-# Ordenar los datos cronológicamente (asumo que tienes una columna de timestamp)
-data_ordenada <- data %>%
-  arrange(inicio_visita)
-
-# Crear una columna que identifique si el fin_visita es igual al de la fila anterior
-data_secuencia <- data_ordenada %>%
-  mutate(
-    consecutivo = (fin_visita == lag(fin_visita, default = first(fin_visita)))
-  )
-
-# Crear un identificador para cada grupo consecutivo con el mismo fin_visita
-data_secuencia <- data_secuencia %>%
-  mutate(
-    grupo = cumsum(!consecutivo)  # Incrementar grupo cuando cambia fin_visita
-  )
-
-# Resumir el número de filas en cada grupo consecutivo
-resumen_secuencias <- data_secuencia %>%
-  group_by(fin_visita, grupo) %>%
-  summarise(cantidad = n(), .groups = "drop")
-
-# Mostrar las secuencias más largas
-resumen_secuencias %>%
-  arrange(desc(cantidad))
-
-filtered_amounts <- resumen_secuencias %>% filter(cantidad != 1)
-```
-
-Como referencia, el día 2024-06-27 16:06:00 hay 23 entregas graficadas el mismo día.
-
-::: panel-tabset
-## Ejemplo 50 entregas
-
-```{r, warning=FALSE, echo=FALSE}
- #Cargar librerías necesarias
-library(leaflet)
-library(dplyr)
-# Filtrar las entregas según el fin_visita elegido
-fin_visita_elegido <- "2024-06-12 16:12:00"  # Cambia este valor por el deseado
-
-entregas_filtradas <- data %>%
-  filter(fin_visita == fin_visita_elegido)
-
-# Verificar si hay datos para graficar
-if (nrow(entregas_filtradas) == 0) {
-  print("No hay entregas con el fin_visita seleccionado.")
-} else {
-  # Crear el mapa interactivo con Leaflet
-  leaflet(data = entregas_filtradas) %>%
-    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
-    addCircleMarkers(
-      lng = ~longitud, lat = ~latitud,  # Coordenadas
-      radius = 6, color = "blue", stroke = FALSE, 
-      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
-      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
-      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
-    ) 
-}
-```
-
-## Ejemplo 23 entregas
-
-```{r, warning=FALSE, echo=FALSE}
- #Cargar librerías necesarias
-library(leaflet)
-library(dplyr)
-# Filtrar las entregas según el fin_visita elegido
-fin_visita_elegido <- "2024-06-27 16:06:00"  # Cambia este valor por el deseado
-
-entregas_filtradas <- data %>%
-  filter(fin_visita == fin_visita_elegido)
-
-# Verificar si hay datos para graficar
-if (nrow(entregas_filtradas) == 0) {
-  print("No hay entregas con el fin_visita seleccionado.")
-} else {
-  # Crear el mapa interactivo con Leaflet
-  leaflet(data = entregas_filtradas) %>%
-    addTiles() %>%  # Añadir un mapa base (OpenStreetMap)
-    addCircleMarkers(
-      lng = ~longitud, lat = ~latitud,  # Coordenadas
-      radius = 6, color = "blue", stroke = FALSE, 
-      fillOpacity = 0.8, fillColor = "red",  # Estilo de los marcadores
-      label = ~paste("Lat:", latitud, "<br>Lng:", longitud),  # Etiquetas al pasar el mouse
-      popup = ~paste0("Entrega en: ", latitud, ", ", longitud)  # Popup al hacer clic
-    ) 
-}
-```
-:::
-
-¿Que tan frecuente es este error? Muy frecuentes
-
-```{r, warning=FALSE, echo=FALSE}
-# Asegurarse de que no haya NAs en la columna 'cantidad'
-resumen_secuencias <- resumen_secuencias %>%
-  filter(!is.na(cantidad), cantidad != 1)
-
-# Crear la columna 'categoria' con las condiciones bien definidas
-resumen_secuencias <- resumen_secuencias %>%
-  mutate(
-    categoria = case_when(
-      cantidad == 2 ~ "2",
-      cantidad >= 3 & cantidad <= 5 ~ "De 3 a 5",
-      cantidad >= 6 & cantidad <= 10 ~ "De 6 a 10",
-      cantidad >= 11 & cantidad <= 20 ~ "De 11 a 20",
-      cantidad > 20 ~ "Más de 20"
-    )
-  )
-
-# Verificar si hay NAs en la columna 'categoria'
-resumen_secuencias <- resumen_secuencias %>%
-  filter(!is.na(categoria))
-
-# Crear el gráfico de barras con las categorías corregidas
-ggplot(resumen_secuencias, aes(x = categoria)) +
-  geom_bar(fill = "#94C11F", color = "black", alpha = 0.8) +
-  labs(
-    title = "Distribución de Secuencias por Categoría",
-    x = "Categoría de cantidad",
-    y = "Frecuencia"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
-
-```
-
-## Conclusiones:
-
-Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
-
-Al desconfiar del 46.67% de los datos es dificil y poco preciso cualquier tipo de analisis sobre la eficiencia operativa de las entregas. Esto puede traer posibles problemas como:
-
-1.  Problema 1
-2.  Problema 2
-
-Solucionar esta situacion representa una gran oportunidad y facilitaria exponencialmente el crecimiento de la empresa, precision de las ventanas de entrega, identificación de cuellos de botella reales y a final de cuentas la toma de decisiones operativas.
-
-> "Lo que no se mide, no se puede mejorar." - Peter F. Drucker
-
-A continuación listamos algunos posibles motivos y oportunidades para corregir la situación.
-
-1.  Manual de uso y capacitación sobre el sistema [UNIGIS](https://www.unigis.com/ "Sitio web oficial de Unigis")
-
-Basandonos en el [Manual de transportistas - Elementos de seguridad y APPS](https://transportes.iflow21.com/portal/es/kb/articles/manual-de-transportistas-elementos-de-seguridad-y-apps) encontramos la siguiente referencia sobre el uso de la aplicación.
-
-![](images/user_manual.png)
-
-Capacitar mejor al personal con mayor cantidad de recursos, claridad en los instructivos y videos demostrando el uso correcto del sistema [videos demostrando el uso correcto del sistema](https://www.youtube.com/watch?v=JnEHVHhs6V4 "Video grabado por Corporación Aceros Arequipa para su equipo") mejoraría la precision de la carga de los datos en el futuro.
-
-2.  Creación de una interfaz personalizada para Unigis.
-
-El error de carga de horarios iguales en entregas consecutivas puede deberse principalmente a la dificultad de uso del sistema o poca practicidad del mismo por la que los transportistas podrían saltear los pasos del instructivo.
-
-Si migrar a un nuevo sistema más moderno es una alternativa muy costosa podrían considerar hacer una inversión en desarrollo frontend para, utilizando la API del sistema actual, puedan tener una interfaz más amena a los transportistas.
-
-[![Referencia del Uso de la API cloud de Unigis](images/postman_reference.png)](https://www.postman.com/irampoldi/unigis/request/8833s18/reportedeviajes)
-
-El desarrollo de una interfaz personalizada para interactuar con su sistema actual podría ser una inversión considerable pero economica contrastando con la posibilidad de un desarrollo personalizado o la migración a un nuevo sistema.
-
-Algunas consideraciones:
-
--   Inversión en equipo e investigación UX para asegurar el uso intuitivo de los transportistas. Es importante entender como es el uso del sistema en la practica.
-
-3.  Migrar a un sistema más moderno o diseñar uno a medida para sus necesidades.
-
-    Puede ser la opción mas costosa.
-
-> ¿Existen picos de entregas en ciertos días u horas?
-
-```{r, warning=FALSE, echo=FALSE}
-# Agrupar los datos por día y hora para contar ocurrencias
-resumen <- data %>%
-  group_by(dia_str, hora) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  ungroup()
-
-# Asegurar el orden correcto de los días (Lunes a Domingo)
-resumen$dia_str <- factor(resumen$dia_str, 
-                           levels = c("lunes", "martes", "miércoles", 
-                                      "jueves", "viernes", "sábado", "domingo"))
-
-resumen <- resumen %>% filter(!is.na(dia_str), dia_str != "domingo")
-
-
-ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
-  geom_tile(color = "white") +
-  scale_fill_viridis(option = "C", direction = 1) +
-  labs(title = "Entregas por día y hora", 
-       x = "Hora del día", 
-       y = "Día de la semana", 
-       fill = "Cantidad") +
-  theme_minimal()
-```
-
 > ¿Cuántas entregas se hicieron fuera del tiempo esperado o planificado?
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -952,68 +987,7 @@ fig <- fig %>%
 fig
 ```
 
-# Detección de anomalías.
-
-En esta sección identificamos situaciones atípicas o inesperadas en los datos que podrían influir en la interpretación de los resultados. Estas situaciones podrían ser el reflejo de errores operativos, problemas en el registro de datos, o eventos excepcionales en la logística.
-
-El propósito de esta etapa fue **registrar y documentar** estas anomalías para analizarlas en mayor profundidad, evaluando si representan errores a corregir o comportamientos relevantes que deben considerarse en la optimización de procesos.
-
-## PENDIENTE Entregas en día domingo.
-
-> mostrar cantidad de entregas por día, indicar que los domingos no es comun
-
-```{r,warning=FALSE,echo=FALSE}
-# Convertir la columna dia_str en un factor ordenado
-data <- data %>%
-  mutate(dia_str = factor(dia_str, 
-                          levels = c("lunes", "martes", "miércoles", 
-                                     "jueves", "viernes", "sábado","domingo")))
-
-# Agrupar por el nombre del día y contar las entregas
-entregas_por_dia <- data %>%
-  group_by(dia_str) %>%
-  summarise(n = n())
-
-# Crear el gráfico de barras
-ggplot(entregas_por_dia, aes(x = dia_str, y = n)) +
-  geom_bar(stat = "identity", fill = "#94C11F") +
-  labs(title = "Cantidad de Entregas por Día de la Semana",
-       x = "Día de la Semana",
-       y = "Número de Entregas") +
-  theme_minimal()
-```
-
-> e identificar las entregas con su horario.
-
-```{r,warning=FALSE,echo=FALSE, output=FALSE}
-data %>% filter(dia_str == "domingo")
-```
-
-| Orden  | Localidad       | Fecha y hora        |
-|--------|-----------------|---------------------|
-| 81943  | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-| 100968 | CAPITAL FEDERAL | 2024-07-21 23:51:00 |
-
-## PENDIENTE Entregas consecutivas inmediatas.
-
-Notamos que en las entregas muy cercanas geograficamente, en la misma cuadra, suelen tener el mismo horario de finalización. Esto se puede deber a que los operarios olvidan hacer la carga individual o consideran mas rapido completar ambas entregas antes de registrarlo en el sistema.
-
-Junto con los errores de carga en los horarios de entrega este puede ser un segundo indicador de que el sistema de carga puede ser mejorado para no recolectar datos erroneos en el futuro.
-
-Horarios cargados de forma incorrecta podrian causar:
-
-1.  Mala estimación sobre tiempos muertos.
-2.  Dificulta optimizar los procesos de entrega.
-3.  Perjudica la proyección de horarios de entregas o ventanas horarias.
-
-Algunas sugerencias e ideas para mejorar esto incluyen:
-
--   Mejoras de la interfaz en el sistema de carga para facilitar y fomentar su uso.
-
--   Implementación de un sistema de validación de los datos para evitar duplicados.
-
--   Desarrollo y uso de hardware específico para la carga de datos.
+## Conclusiones
 
 # Segmentación y patrones en entregas.
 
@@ -1091,7 +1065,7 @@ entregas_por_orden <- data %>%
   group_by(id_orden) %>%
   summarize(cant_entregas = n(),
             has_many = cant_entregas > 1,
-            clientes_unicos = n_distinct(cliente))
+            clientes_unicos = n_distinct(cliente),  .groups = "drop")
 
 # Crear el histograma
 ggplot(entregas_por_orden, aes(x = cant_entregas)) +
@@ -1196,7 +1170,7 @@ print(elbow_plot)
 # Calcular el número de entregas por cluster y ordenarlos de mayor a menor
 cluster_counts <- buenos_aires_data %>%
   group_by(cluster) %>%
-  summarise(count = n()) %>%
+  summarise(count = n(),  .groups = "drop") %>%
   arrange(desc(count))
 
 # Graficar el bar chart de cantidad de entregas por cluster con etiquetas
@@ -1221,7 +1195,7 @@ buenos_aires_sf <- buenos_aires_data %>%
 # Calcular el envolvente convexo (convex hull) para cada cluster
 clusters_hulls <- buenos_aires_sf %>%
   group_by(cluster) %>%
-  summarise(geometry = st_combine(geometry)) %>%  # Combina las geometrías de cada cluster
+  summarise(geometry = st_combine(geometry),  .groups = "drop") %>%  # Combina las geometrías de cada cluster
   st_convex_hull()  # Calcula el envolvente convexo
 
 # Calcular el número de puntos en cada cluster
