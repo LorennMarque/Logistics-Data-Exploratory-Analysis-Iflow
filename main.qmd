@@ -1249,44 +1249,6 @@ acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
 >
 > ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
 
-## Distribución de entregas
-
-### PENDIENTE Volumen y Cobertura Geográfica\|
-
-> ¿Cuántas entregas se realizaron en cada localidad o región?
->
-> ¿Qué porcentaje del total de entregas corresponde a las principales localidades?
->
-> ¿Qué clientes concentran el mayor volumen de entregas en cada región?
-
-### PENDIENTE Patrones Temporales por Región
-
-> ¿Qué días de la semana tienen mayor volumen de entregas en cada localidad?
->
-> ¿Existen picos de entregas en determinadas horas del día según la región?
->
-> ¿Cómo varía el volumen de entregas entre diferentes meses o semanas en cada región?
-
-### PENDIENTE Eficiencia Operativa por Zona
-
-> ¿Cuáles son las rutas o regiones con mayor concentración de entregas por cliente?
->
-> ¿Qué localidades presentan mayores retrasos en las entregas?
->
-> ¿Cómo afecta la distancia al centro de distribución en los tiempos de entrega?
->
-> ¿Qué impacto tienen las condiciones geográficas (latitud y longitud) en los tiempos de entrega?
->
-> Detecta si la ubicación geográfica influye en el rendimiento logístico.
-
-### PENDIENTE Optimización y Recursos
-
-> ¿Cómo varía la densidad de entregas por zona y qué impacto tiene en la asignación de recursos?
->
-> ¿Qué zonas podrían beneficiarse de una mayor frecuencia de entregas para mejorar la eficiencia?
->
-> ¿Existen patrones geográficos en los pedidos con anomalías o entregas fallidas?
-
 ## Unidades de Transporte
 
 En los datos proporcionados no contamos con la información necesaria para realizar un análisis específico de las unidades de transporte, ya que sería indispensable disponer de un identificador único para cada vehículo. Sin embargo, incluimos esta sección como prueba de concepto para demostrar el valor que podría generar este tipo de análisis en la operación logística. Disponer de esta información permitiría evaluar aspectos fundamentales de la gestión de la flota, optimización de rutas y eficiencia operativa.
