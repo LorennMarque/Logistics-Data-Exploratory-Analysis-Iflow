@@ -451,6 +451,10 @@ plot_ly(
   )
 ```
 
+Como podemos ver bla bla bla lbads
+
+sadindiofnoidsfniosdfndsoinfdsionfsdionfdsoif
+
 ```{r,warning=FALSE,echo=FALSE}
 # Crear una lista de fechas únicas extraídas de la columna fin_visita
 fechas_unicas <- unique(as.Date(data$fin_visita))
