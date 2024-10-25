@@ -629,8 +629,6 @@ Algunas consideraciones:
 
 ## Información de bultos y peso.
 
-> ¿Cuál es el promedio de bultos, peso y unidades entregadas por pedido?
-
 En promedio cada entrega tiene:
 
 -   28.40 Unidades
@@ -704,8 +702,6 @@ mean(data$peso) # Promedio
 :::
 
 ## Distribución geográfica de las entregas.
-
-> ¿Cuál es la distribución de entregas por localidad o región?
 
 ```{r,echo=FALSE, output=FALSE}
 # Geolocalización
@@ -913,8 +909,6 @@ heatmap_plot
 
 ### PENDIENTE Centro de distribución en Mendoza.
 
-> mostrar grafico, imagen de google maps y explicación.
-
 ::: panel-tabset
 ## 📍 Mapa
 
@@ -1025,7 +1019,7 @@ Este mapa permite la visualización de un mapa interactivo que muestra las entre
 
 ## PENDIENTE Volumen y Distribución de Entregas
 
-> ¿Cuántas entregas corresponden a cada cliente?
+> Cantidad de entregas correspondientes a cada cliente
 
 ```{r, warning=FALSE, echo=FALSE}
 # Crear barchart con la cantidad total de entregas por cliente
@@ -1089,7 +1083,8 @@ print(linechart_cliente_dia)
 
 Este gráfico de lineas permite la visualización de la cantidad de entregas realizadas por cliente a lo largo de los días de la semana, excluyendo el domingo. Utiliza líneas para representar la evolución del número de entregas para cada cliente, con puntos destacados en cada día.
 
-> Los domicilios reciben entregas de un único cliente o solo 20 o 70?
+
+
 
 Total de ordenes con más de una entrega: 5027
 
@@ -1136,9 +1131,7 @@ ggplot(frecuencias, aes(x = has_many, y = n)) +
 Este gráfico de barra permite la visualización de la cantidad de domicilios que han recibido más de una entrega. Utiliza barras para representar el número total de domicilios, distinguiendo entre aquellos que tienen mas de una entrega y los que no.
 :::
 
-> ¿Qué porcentaje de entregas se concentra en las localidades más activas?
->
-> > zonas de entregas.
+> Zonas de entregas
 
 ```{r, warning=FALSE, echo=FALSE}
 # Filtrar los datos de Buenos Aires
@@ -1323,7 +1316,7 @@ Este gráfico de barras permite visualizar la cantidad de entregas por cluster, 
 >
 > ¿Qué zonas presentan mayores retrasos o entregas fuera de tiempo?
 >
-> > Identifica áreas con posibles cuellos de botella logísticos.
+> Identifica áreas con posibles cuellos de botella logísticos.
 >
 > ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
 
@@ -1491,7 +1484,7 @@ A continuación, presentamos algunas preguntas clave que podrían responderse co
 
 Si bien no contamos con la información completa sobre las unidades de transporte, hemos realizado estimaciones basadas en los datos disponibles y presentamos nuestro análisis como aproximación para obtener insights relevantes.
 
-> Ver las sedes de Iflow (que conocemos)
+> Sedes de Iflow que conocemos
 
 ```{r, warning=FALSE, echo=FALSE}
 # Definir las coordenadas en la variable 'sedes'
@@ -1526,7 +1519,7 @@ fig
 
 ```
 
-> Graficar la primera entrega de cada día. Graficar la primera y segunda entrega de cada día. Esperariamos que estas entregas rodeen cada sede. Entender su comportamiento.
+> Primera entrega de cada día
 
 ```{r, warning=FALSE, echo=FALSE}
 # Suponiendo que 'data' tiene las columnas necesarias: 'fin_visita', 'latitud', 'longitud', 'cliente'
