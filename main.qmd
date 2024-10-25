@@ -276,6 +276,7 @@ data %>%
 ::: panel-tabset
 ## Entregas por cliente
 
+
 ```{r,warning=FALSE,echo=FALSE}
 
 # Crear una columna con el primer día del mes correspondiente
@@ -300,6 +301,10 @@ ggplot(entregas_por_mes, aes(x = mes, y = n, fill=cliente)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Este gráfico de barras muestra la cantidad de entregas realizadas cada mes, separadas por cliente. Las barras están agrupadas por mes y se distinguen por colores para cada cliente.
+
+La cantidad de entregas es constante entre mayo y julio, con algunas variaciones entre los clientes. Esto indica un comportamiento predecible en la demanda mensual. Planificar recursos en función de estos patrones puede mejorar la eficiencia operativa.
+
 ## Entregas por mes
 
 ```{r,warning=FALSE,echo=FALSE}
@@ -323,7 +328,13 @@ ggplot(entregas_por_mes, aes(x = mes, y = n)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
+En este gráfico se visualiza la cantidad total de entregas realizadas por mes, sin importar el cliente.
+
+n patrón estable en el número de entregas permite predecir la demanda mensual. Las caídas pueden ser analizadas más adelante para identificar feriados o problemas en la operación.
 :::
+
+
 
 ## ¿Cuales son los horarios de entrega? {#horarios-entrega}
 
@@ -352,7 +363,10 @@ ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
   theme_minimal()
 ```
 
-El dia con más entregas es el miercoles cerca de las 15:00
+Este gráfico de calor muestra la cantidad de entregas realizadas según la hora del día y el día de la semana. Cada celda del gráfico representa un cruce entre una hora y un día, con colores más intensos indicando una mayor cantidad de entregas.
+
+Mayor actividad: El miércoles alrededor de las 15:00 es el momento con más entregas.
+Patrón semanal: Hay menos actividad los fines de semana, especialmente los domingos, donde casi no se registran entregas.
 
 ```{r,warning=FALSE,echo=FALSE}
 # Convertir la columna dia_str en un factor ordenado
@@ -1313,7 +1327,7 @@ fig
 Tenemos 4 grandes caidas en las entregas por lo que buscamos identificar el motivo en cada fecha.
 
 | Fecha                   | Cantidad de entregas | Motivo                                                                                                                                                                           |
-|------------|------------|-------------------------------------------------|
+|---------------|---------------|-------------------------------------------|
 | Jueves 9 de mayo        | 0                    | FNTC (Camioneros) adhiere al [paro general del 9 de mayo\*](https://tn.com.ar/sociedad/2024/05/08/quienes-adhieren-al-paro-general-del-9-de-mayo-y-que-servicios-no-funcionan/). |
 | Jueves 20 de junio      | 138                  | [Feriado nacional\*](https://www.argentina.gob.ar/interior/feriados-nacionales-2024) Paso a la Inmortalidad del Gral. Manuel Belgrano                                            |
 | **Domingo** 21 de julio | 3                    | Como [explicamos anteriormente](#horarios-entrega "¿Cuales son los horarios de entrega?") , según nuestros datos iflow no realizan entregas los domingos.                        |
