@@ -325,7 +325,7 @@ ggplot(entregas_por_mes, aes(x = mes, y = n)) +
 ```
 :::
 
-## ¿Cuales son los horarios de entrega?
+## ¿Cuales son los horarios de entrega? {#horarios-entrega}
 
 ```{r, warning=FALSE, echo=FALSE}
 # Agrupar los datos por día y hora para contar ocurrencias
@@ -1266,55 +1266,6 @@ ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor
   theme_minimal()
 ```
 
-## PENDIENTE Estacionalidad y temporalidad.
-
-> ¿Existen patrones estacionales en la demanda de entregas (meses con mayor/menor volumen)?
-
-```{r, warning=FALSE, echo=FALSE}
-# 1. Filtrar valores faltantes en la columna 'fin_visita'
-df_date <- data %>% filter(!is.na(fin_visita))
-
-# 2. Convertir 'fin_visita' a fecha-hora y luego extraer solo la fecha
-df_date$fin_visita <- as.POSIXct(df_date$fin_visita, format = "%Y-%m-%d %H:%M:%S")
-df_date$fecha <- as.Date(df_date$fin_visita)  # Extraer la fecha sin horas
-
-# 3. Agrupar las entregas por día
-entregas_diarias <- df_date %>%
-  group_by(fecha) %>%
-  summarize(total_entregas = n())
-
-# 4. Completar días faltantes con 0 entregas
-rango_fechas <- seq(min(entregas_diarias$fecha), max(entregas_diarias$fecha), by = "day")
-
-entregas_completas <- data.frame(fecha = rango_fechas) %>%
-  left_join(entregas_diarias, by = "fecha") %>%
-  mutate(total_entregas = ifelse(is.na(total_entregas), 0, total_entregas))
-
-# 5. Crear la serie temporal diaria con frecuencia semanal (7 días)
-entregas_ts <- ts(
-  entregas_completas$total_entregas,
-  start = c(year(min(entregas_completas$fecha)), yday(min(entregas_completas$fecha))),
-  frequency = 7  # Frecuencia semanal
-)
-
-# 6. Descomponer la serie temporal usando STL
-descomposicion_stl <- stl(entregas_ts, s.window = "periodic")
-
-# 7. Graficar la descomposición STL
-autoplot(descomposicion_stl) +
-  ggtitle("Descomposición STL de la Serie de Tiempo Diaria")
-
-```
-
-```{r echo = FALSE}
-# 8. Graficar la función de autocorrelación (ACF)
-acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
-```
-
-> ¿El volumen de entregas varía significativamente entre diferentes meses del año?
->
-> ¿Cómo varía la demanda entre diferentes semanas o meses?
-
 ## PENDIENTE Eficiencia y Rendimiento Operativo
 
 > ¿Cuál es el tiempo promedio de entrega por cliente y por localidad?
@@ -1324,6 +1275,140 @@ acf(entregas_ts, main = "Autocorrelación de Entregas Diarias")
 > > Identifica áreas con posibles cuellos de botella logísticos.
 >
 > ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
+
+# Análisis de series temporales
+
+```{r, warning=FALSE, echo=FALSE}
+# Aseguramos que la columna 'mes' tenga solo el año y mes
+data_resumida <- data %>%
+  mutate(mes = as.Date(format(mes, "%Y-%m-01")))
+
+# Agrupación de los datos por día y mes
+data_resumida <- data_resumida %>%
+  group_by(mes, dia) %>%
+  summarize(n = n(), .groups = 'drop')
+
+# Crear una fecha combinando el día y el mes
+data_resumida <- data_resumida %>%
+  mutate(fecha = mes + days(dia - 1)) %>%
+  arrange(fecha)  # Ordenar por la fecha completa para evitar saltos
+
+# Crear el gráfico interactivo con Plotly
+fig <- plot_ly(data_resumida, x = ~fecha, y = ~n, type = 'scatter', mode = 'lines+markers') %>%
+  layout(
+    title = "Evolución de n a lo largo del tiempo",
+    xaxis = list(
+      title = "Fecha",
+      tickformat = "%d-%b",  # Formato de fecha
+      tickangle = 45  # Rotar las etiquetas del eje X
+    ),
+    yaxis = list(title = "n"),
+    margin = list(b = 80)  # Asegurar espacio para las etiquetas del eje X
+  )
+
+# Mostrar el gráfico
+fig
+```
+
+Tenemos 4 grandes caidas en las entregas por lo que buscamos identificar el motivo en cada fecha.
+
+| Fecha                   | Cantidad de entregas | Motivo                                                                                                                                                                           |
+|------------|------------|-------------------------------------------------|
+| Jueves 9 de mayo        | 0                    | FNTC (Camioneros) adhiere al [paro general del 9 de mayo\*](https://tn.com.ar/sociedad/2024/05/08/quienes-adhieren-al-paro-general-del-9-de-mayo-y-que-servicios-no-funcionan/). |
+| Jueves 20 de junio      | 138                  | [Feriado nacional\*](https://www.argentina.gob.ar/interior/feriados-nacionales-2024) Paso a la Inmortalidad del Gral. Manuel Belgrano                                            |
+| **Domingo** 21 de julio | 3                    | Como [explicamos anteriormente](#horarios-entrega "¿Cuales son los horarios de entrega?") , según nuestros datos iflow no realizan entregas los domingos.                        |
+| 2 de agosto             | 11                   | Por simplicidad asumimos que se debe a falta de datos en la fecha para comparir el dataset.                                                                                      |
+
+Para realizar un pronóstico de demanda para el mes de agosto vamos no vamos a tomar en cuenta estos 4 casos asumiendolos como irrelevantes para el modelo. Limitando los datos hasta el 30 de julio
+
+```{r, warning=FALSE, echo=FALSE}
+data_resumida_clean <- data_resumida %>%
+  filter(
+    !(fecha == as.Date("2024-05-09")),
+    !(fecha == as.Date("2024-06-20")),
+    !(fecha == as.Date("2024-07-21")),
+    !(fecha > as.Date("2024-07-30"))
+  )
+# Crear el gráfico interactivo con Plotly
+fig <- plot_ly(data_resumida_clean, x = ~fecha, y = ~n, type = 'scatter', mode = 'lines+markers') %>%
+  layout(
+    title = "Evolución de n a lo largo del tiempo",
+    xaxis = list(
+      title = "Fecha",
+      tickformat = "%d-%b",  # Formato de fecha
+      tickangle = 45  # Rotar las etiquetas del eje X
+    ),
+    yaxis = list(title = "n"),
+    margin = list(b = 80)  # Asegurar espacio para las etiquetas del eje X
+  )
+
+# Mostrar el gráfico
+fig
+```
+
+Con los datos ordenados ahora podemos descomponer la serie temporal en tendencia, estacionalidad y residuales.
+
+```{r, warning=FALSE, echo=FALSE}
+# Convertir los datos a serie temporal (suponiendo frecuencia diaria)
+ts_data <- ts(data_resumida_clean$n, frequency = 7)  # Frecuencia semanal
+
+# Descomposición de la serie temporal
+descomposicion <- stl(ts_data, s.window = "periodic")
+
+# Gráfico de la descomposición
+plot(descomposicion)
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Filtrar los datos para entrenamiento y validación
+train_data <- data_resumida_clean %>%
+  filter(fecha >= as.Date("2024-05-01") & fecha <= as.Date("2024-06-30"))
+
+test_data <- data_resumida_clean %>%
+  filter(fecha >= as.Date("2024-07-01") & fecha <= as.Date("2024-07-31"))
+
+# Convertir los datos de entrenamiento y validación a series temporales
+train_ts <- ts(train_data$n, start = c(2024, 5), frequency = 7)
+test_ts <- ts(test_data$n, start = c(2024, 7), frequency = 7)
+
+# Ajustar los modelos ARIMA(1,0,1) y ARIMA(1,1,1)
+modelo_arima_101 <- Arima(train_ts, order = c(1,0,1))
+print(modelo_arima_101)
+
+modelo_arima_111 <- Arima(train_ts, order = c(1,1,1))
+print(modelo_arima_111)
+
+# Predecir para el mismo número de pasos que los datos de prueba
+pred_101 <- forecast(modelo_arima_101, h = length(test_ts))
+pred_111 <- forecast(modelo_arima_111, h = length(test_ts))
+
+# Asegurar que las predicciones y los datos de prueba tengan la misma longitud
+if (length(test_ts) == length(pred_101$mean)) {
+  
+  # Reemplazar valores NA en predicciones, si los hubiera
+  pred_101$mean[is.na(pred_101$mean)] <- 0
+  pred_111$mean[is.na(pred_111$mean)] <- 0
+  
+  # Alinear las predicciones y los datos de prueba
+  aligned_pred_101 <- ts(pred_101$mean, start = start(test_ts), frequency = 7)
+  aligned_pred_111 <- ts(pred_111$mean, start = start(test_ts), frequency = 7)
+
+  # Calcular errores para ARIMA(1,0,1)
+  MAE_101 <- mean(abs(test_ts - aligned_pred_101), na.rm = TRUE)
+  RMSE_101 <- sqrt(mean((test_ts - aligned_pred_101)^2, na.rm = TRUE))
+
+  # Calcular errores para ARIMA(1,1,1)
+  MAE_111 <- mean(abs(test_ts - aligned_pred_111), na.rm = TRUE)
+  RMSE_111 <- sqrt(mean((test_ts - aligned_pred_111)^2, na.rm = TRUE))
+
+  # Mostrar resultados
+  cat("Errores ARIMA(1,0,1):\n MAE:", MAE_101, "\n RMSE:", RMSE_101, "\n")
+  cat("Errores ARIMA(1,1,1):\n MAE:", MAE_111, "\n RMSE:", RMSE_111, "\n")
+
+} else {
+  cat("Error: Las longitudes de las predicciones y los datos de prueba no coinciden.\n")
+}
+```
 
 # Unidades de Transporte
 
