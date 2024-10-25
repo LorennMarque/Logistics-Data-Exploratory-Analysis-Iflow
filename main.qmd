@@ -276,7 +276,6 @@ data %>%
 ::: panel-tabset
 ## Entregas por cliente
 
-
 ```{r,warning=FALSE,echo=FALSE}
 
 # Crear una columna con el primer día del mes correspondiente
@@ -334,8 +333,6 @@ En este gráfico se visualiza la cantidad total de entregas realizadas por mes, 
 n patrón estable en el número de entregas permite predecir la demanda mensual. Las caídas pueden ser analizadas más adelante para identificar feriados o problemas en la operación.
 :::
 
-
-
 ## ¿Cuales son los horarios de entrega? {#horarios-entrega}
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -365,8 +362,7 @@ ggplot(resumen, aes(x = hora, y = dia_str, fill = n)) +
 
 Este gráfico de calor muestra la cantidad de entregas realizadas según la hora del día y el día de la semana. Cada celda del gráfico representa un cruce entre una hora y un día, con colores más intensos indicando una mayor cantidad de entregas.
 
-Mayor actividad: El miércoles alrededor de las 15:00 es el momento con más entregas.
-Patrón semanal: Hay menos actividad los fines de semana, especialmente los domingos, donde casi no se registran entregas.
+Mayor actividad: El miércoles alrededor de las 15:00 es el momento con más entregas. Patrón semanal: Hay menos actividad los fines de semana, especialmente los domingos, donde casi no se registran entregas.
 
 ```{r,warning=FALSE,echo=FALSE}
 # Convertir la columna dia_str en un factor ordenado
@@ -643,10 +639,14 @@ En promedio cada entrega tiene:
 
 -   Un peso de 41.15kg
 
-porque dan con coma????????????????????????????
+-   Un peso promedio elevado por pedido puede indicar productos de gran volumen o de alto consumo. Esto tiene implicaciones en los costos de transporte y las rutas de entrega.
 
 ::: panel-tabset
 ## 🔢 Unidades
+
+::: panel-tabset
+Este histograma permite ver la concentración de pedidos en ciertos rangos de unidades. Si se observa una mayor densidad en valores específicos, esto podría indicar patrones de demanda estándar entre los clientes.
+:::
 
 ```{r,warning=FALSE,echo=FALSE}
 # Crear el histograma
@@ -664,6 +664,10 @@ mean(data$unidades) # Promedio
 
 ## 📦 Bultos
 
+::: panel-tabset
+Este histograma permite identificar el tamaño típico de los pedidos. Una distribución sesgada hacia valores altos sugiere que la mayoría de los pedidos son de varios bultos, lo que puede influir en la planificación de cargas y en la selección de vehículos de transporte.
+:::
+
 ```{r,warning=FALSE,echo=FALSE}
 # Crear el histograma
 ggplot(data, aes(x = bultos)) +
@@ -679,6 +683,10 @@ mean(data$bultos) # Promedio
 ```
 
 ## ⚖️ Peso
+
+::: panel-tabset
+Este histograma permite identificar el tamaño típico de los pedidos. Una distribución sesgada hacia valores altos sugiere que la mayoría de los pedidos son de varios bultos, lo que puede influir en la planificación de cargas y en la selección de vehículos de transporte.
+:::
 
 ```{r,warning=FALSE,echo=FALSE}
 # Crear el histograma
@@ -731,9 +739,7 @@ plot_ly(
   )
 ```
 
-Como podemos ver bla bla bla lbads
-
-sadindiofnoidsfniosdfndsoinfdsionfsdionfdsoif
+Como podemos ver este mapa de entregas de la ciudad de Buenos Aires muestra visualmente la dispersión de las entregas en la ciudad. La variedad de colores permite ver qué clientes se agrupan en ciertas áreas. Si ciertos clientes concentran entregas en una región específica, eso puede indicar una demanda localizada o preferencia regional de ciertos productos.
 
 ```{r,warning=FALSE,echo=FALSE}
 # Crear una lista de fechas únicas extraídas de la columna fin_visita
@@ -771,10 +777,14 @@ plot_ly(
   )
 ```
 
+En este mapa las áreas con mayor densidad de entregas resaltan visualmente. Estas zonas de alta actividad pueden representar zonas comerciales o residenciales clave. Esto es útil para optimizar las rutas de entrega y asignar más recursos a zonas con alta demanda.
+
 Para verlo de forma más resumida;
 
 ::: panel-tabset
 ## 🏘️ Barrios
+
+En base a este mapa se permite ver cómo se distribuyen las entregas a nivel de barrio. Los barrios con mayor intensidad de color son aquellos con más entregas, lo que indica la importancia de estos barrios en el volumen de pedidos.
 
 ```{r,warning=FALSE,echo=FALSE}
 # Cargar los barrios desde el archivo GeoJSON
@@ -815,6 +825,8 @@ ggplot(data = barrios) +
 ```
 
 ## 🏙️ Comunas
+
+Similar al mapa por barrio, pero agrupando entregas por comunas. Las comunas que presentan más entregas destacan como puntos de interés para analizar el impacto logístico y la demanda concentrada.
 
 ```{r, warning=FALSE, echo=FALSE}
 # 1. Cargar los barrios desde el archivo GeoJSON
@@ -862,6 +874,8 @@ ggplot(data = comunas) +
 ```
 
 ## 🌡️ Entregas Individuales
+
+Los puntos en el mapa de Buenos Aires representan ubicaciones de entregas, y las áreas con mayor densidad de entregas aparecen con colores más intensos, permitiendo identificar visualmente las zonas con más actividad de entregas.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Mapa de calor de entregas
@@ -960,6 +974,8 @@ ggplot(data_agrupada, aes(x = mes, y = cantidad, fill = estado_entrega)) +
   theme_minimal()
 ```
 
+Este gráfico permite la visualización de la cantidad de entregas por mes, clasificadas en "Tarde" y "Temprano o a Tiempo".
+
 > ¿Qué clientes generan más volumen de entregas y cuáles presentan más problemas o irregularidades?
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -1001,6 +1017,8 @@ fig <- fig %>%
 fig
 ```
 
+Este mapa permite la visualización de un mapa interactivo que muestra las entregas realizadas, clasificado por cliente, en Buenos Aires.
+
 ## Conclusiones
 
 # Segmentación y patrones en entregas.
@@ -1040,6 +1058,8 @@ barchart_cliente <- data %>%
 print(barchart_cliente)
 ```
 
+Este gráfico de barras permite la visualización de la cantidad total de entregas realizadas por cada cliente, utilizando barras que muestran el número de entregas para cada uno
+
 > Identificar entregas recurrentes a domicilios,
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -1067,6 +1087,8 @@ linechart_cliente_dia <- entregas_por_cliente_dia %>%
 print(linechart_cliente_dia)
 ```
 
+Este gráfico de lineas permite la visualización de la cantidad de entregas realizadas por cliente a lo largo de los días de la semana, excluyendo el domingo. Utiliza líneas para representar la evolución del número de entregas para cada cliente, con puntos destacados en cada día.
+
 > Los domicilios reciben entregas de un único cliente o solo 20 o 70?
 
 Total de ordenes con más de una entrega: 5027
@@ -1090,6 +1112,8 @@ ggplot(entregas_por_orden, aes(x = cant_entregas)) +
   theme_minimal()
 ```
 
+Este gráfico permite la visualización de la distribución de la cantidad de entregas por domicilio, mostrando un histograma que representa la frecuencia de entregas para diferentes valores.
+
 ## Porcentajes
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -1108,6 +1132,8 @@ ggplot(frecuencias, aes(x = has_many, y = n)) +
        y = "Cantidad de resultados") +
   theme_minimal()
 ```
+
+Este gráfico de barra permite la visualización de la cantidad de domicilios que han recibido más de una entrega. Utiliza barras para representar el número total de domicilios, distinguiendo entre aquellos que tienen mas de una entrega y los que no.
 :::
 
 > ¿Qué porcentaje de entregas se concentra en las localidades más activas?
@@ -1199,6 +1225,8 @@ ggplot(cluster_counts, aes(x = reorder(cluster, -count), y = count, fill = clust
   ylim(0, max(cluster_counts$count) * 1.1)  # Aumenta el límite superior del eje y
 ```
 
+Este gráfico permite la visualización de cuántas entregas se han realizado en cada cluster, mostrando la cantidad de entregas en un gráfico de barras. Las barras están ordenadas de mayor a menor, lo que facilita ver rápidamente en qué clusters hay más actividad
+
 ## Cobertura
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -1243,6 +1271,8 @@ ggplot() +
   coord_sf()
 
 ```
+
+Este mapa permite la visualización de las áreas cubiertas por cada cluster en Buenos Aires, utilizando envolventes convexos para representar la extensión de cada grupo de entregas. En él, se muestran los puntos de datos de las entregas, coloreados según su cluster, lo que facilita identificar visualmente la distribución geográfica.
 :::
 
 ```{r, warning=FALSE, echo=FALSE}
@@ -1263,6 +1293,8 @@ ggplot(deliveries_per_day_cluster, aes(x = dia_str, y = count, fill = cluster)) 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Este grafico de barras muestra la cantidad de entregas por dia de la semana y por cluster. El gráfico permite comparar fácilmente la cantidad de entregas realizadas en cada día, desglosadas por los diferentes clusters identificados en Buenos Aires.
+
 ```{r, warning=FALSE, echo=FALSE}
 # Calcular el número de entregas por cluster y por cliente
 deliveries_per_cluster_cliente <- buenos_aires_data %>%
@@ -1279,6 +1311,8 @@ ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor
        fill = "Cliente") +
   theme_minimal()
 ```
+
+Este gráfico de barras permite visualizar la cantidad de entregas por cluster, mostrando en el eje X los diferentes clusters y en el eje Y el número total de entregas, con cada barra coloreada según el cliente para facilitar la comparación de la distribución de entregas en Buenos Aires.
 
 ## PENDIENTE Eficiencia y Rendimiento Operativo
 
@@ -1327,7 +1361,7 @@ fig
 Tenemos 4 grandes caidas en las entregas por lo que buscamos identificar el motivo en cada fecha.
 
 | Fecha                   | Cantidad de entregas | Motivo                                                                                                                                                                           |
-|---------------|---------------|-------------------------------------------|
+|------------------|------------------|-------------------------------------|
 | Jueves 9 de mayo        | 0                    | FNTC (Camioneros) adhiere al [paro general del 9 de mayo\*](https://tn.com.ar/sociedad/2024/05/08/quienes-adhieren-al-paro-general-del-9-de-mayo-y-que-servicios-no-funcionan/). |
 | Jueves 20 de junio      | 138                  | [Feriado nacional\*](https://www.argentina.gob.ar/interior/feriados-nacionales-2024) Paso a la Inmortalidad del Gral. Manuel Belgrano                                            |
 | **Domingo** 21 de julio | 3                    | Como [explicamos anteriormente](#horarios-entrega "¿Cuales son los horarios de entrega?") , según nuestros datos iflow no realizan entregas los domingos.                        |
