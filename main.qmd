@@ -1,4 +1,4 @@
----
+insta---
 title: "Caso de estudio | Iflow"
 date: "`r Sys.Date()`"  # Inserta la fecha automáticamente
 format: 
@@ -1195,12 +1195,15 @@ leaflet(data = buenos_aires_data) %>%
   addLegend("bottomright", pal = palette, values = ~cluster,
             title = "Clusters", opacity = 0.2)
 ```
+Este gráfico nos ayuda a comprender el número de clusters utilizados en el análisis de K-means como la distribución geográfica de los mismos en el área de Buenos Aires.
 
 ## Elbow
 
 ```{r, warning=FALSE, echo=FALSE}
 print(elbow_plot)
 ```
+El "gráfico del codo" representa el punto donde añadir más clusters no produce una disminución significativa en el WSS, sugiriendo que los clusters ya están suficientemente bien definidos.
+
 :::
 
 ::: panel-tabset
@@ -1393,8 +1396,8 @@ fig <- plot_ly(data_resumida_clean, x = ~fecha, y = ~n, type = 'scatter', mode =
 # Mostrar el gráfico
 fig
 ```
-
 Con los datos ordenados ahora podemos descomponer la serie temporal en tendencia, estacionalidad y residuales.
+
 
 ```{r, warning=FALSE, echo=FALSE}
 # Convertir los datos a serie temporal (suponiendo frecuencia diaria)
@@ -1568,8 +1571,7 @@ mapa_leaflet <- leaflet() %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
-
-Primera y segunda entrega de cada día
+Primera entrega de cada día las cuales se ubican en su mayoría a una gran distancia de las sedes de iFlow analizadas anteriormente.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Encontrar la primera y la segunda entrega de cada día
@@ -1610,6 +1612,7 @@ mapa_leaflet <- leaflet(data = entregas_dia) %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
+En este gráfico en el cual visualizamos los puntos de la primer y segunda entrega del día, encontramos cercanías entre los puntos azules (1er entrega del día) respecto a los puntos rojos (2da entrega del día) lo cual nos hace suponer que realizan las entregas de acuerdo a la cercanía con una ubicación específica.
 
 > Grafico de orden de las entregas de un día en específico.
 
@@ -1699,6 +1702,7 @@ mapa_leaflet <- leaflet(data = entregas_fecha) %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
+Este mapa interactivo proporciona una visualización clara y efectiva de las entregas en un día específico, permitiendo a los usuarios entender rápidamente la distribución geográfica de las entregas, el tiempo entre ellas y la relación con los clientes.
 
 ## Mostrar tiempo entre entregas
 
