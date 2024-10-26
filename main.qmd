@@ -1,19 +1,18 @@
-insta---
-title: "Caso de estudio | Iflow"
-date: "`r Sys.Date()`"  # Inserta la fecha automáticamente
-format: 
-  html:
-    theme: darkly
-    toc: true
-    toc-location: left
-    number-sections: true
-    code-fold: true        # Permitir plegado de bloques de código
-    code-tools: true       # Mostrar herramientas de copiado en los bloques de código
-    smooth-scroll: true    # Habilitar desplazamiento suave al navegar por el índice
-    fig-align: center      # Alinear las figuras al centro
-    toc-depth: 3           # Profundidad máxima del índice
-lang: es                   # Establecer idioma del documento
-editor: visual             # Editor visual habilitado
+---
+title: "Caso de estudio | Iflow" 
+date: "r Sys.Date()" # Inserta la fecha automáticamente 
+format: html
+theme: darkly 
+toc: true 
+toc-location: left 
+number-sections: true 
+code-fold: true # Permitir plegado de bloques de código 
+code-tools: true # Mostrar herramientas de copiado en los bloques de código 
+smooth-scroll: true # Habilitar desplazamiento suave al navegar por el índice 
+fig-align: center # Alinear las figuras al centro 
+toc-depth: 3 # Profundidad máxima del índice 
+lang: es # Establecer idioma del documento 
+editor: visual # Editor visual habilitado
 ---
 
 ```{r,warning=FALSE,echo=FALSE, output=FALSE}
@@ -207,7 +206,7 @@ reparar_lat_long <- function(dataset, ids) {
 # Ejecutar la función usando los id_orden de la columna resultado
 ids_a_reparar <- resultado$id_orden
 
-# Aplicar la función a raw_data
+# Aplicar la función a data
 data <- reparar_lat_long(data, ids_a_reparar)
 ```
 
@@ -588,18 +587,15 @@ ggplot(resumen_secuencias, aes(x = categoria)) +
 
 ```
 
-Con **12799 entregas con horarios mal registrados** representando un **46.67%** los datos disponibles cargados de forma incorrecta.
+Se registraron **12,799 entregas con horarios incorrectos**, lo que representa el **46.67%** de los datos cargados de forma errónea.
 
-Al desconfiar del 46.67% de los datos es dificil y poco preciso cualquier tipo de analisis sobre la eficiencia operativa de las entregas. Esto puede traer posibles problemas como:
+Con casi la mitad de los datos poco confiables, cualquier análisis sobre la **eficiencia operativa** pierde precisión. Esto puede generar errores importantes al evaluar la **duración de las entregas**, los **periodos de actividad** y las **rutas utilizadas**.
 
-1.  Problema 1
-2.  Problema 2
-
-Solucionar esta situacion representa una gran oportunidad y facilitaria exponencialmente el crecimiento de la empresa, precision de las ventanas de entrega, identificación de cuellos de botella reales y a final de cuentas la toma de decisiones operativas.
+Corregir la recopilación de estos datos es una **oportunidad clave** para mejorar el crecimiento de la empresa, optimizar las **ventanas de entrega**, identificar **cuellos de botella** reales y facilitar una toma de decisiones más precisa y efectiva.
 
 > "Lo que no se mide, no se puede mejorar." - Peter F. Drucker
 
-A continuación listamos algunos posibles motivos y oportunidades para corregir la situación.
+A continuación, se presentan posibles causas y oportunidades para resolver esta situación.
 
 1.  Manual de uso y capacitación sobre el sistema [UNIGIS](https://www.unigis.com/ "Sitio web oficial de Unigis")
 
@@ -627,17 +623,19 @@ Algunas consideraciones:
 
     Puede ser la opción mas costosa.
 
+Como conclusión mejorar la capacitación del personal, proporcionando más recursos, instructivos claros y videos demostrativos sobre el uso correcto del sistema, ayudaría a aumentar la precisión en la carga de datos. Además, la creación de una interfaz personalizada para Unigis podría resolver errores comunes, como los horarios idénticos en entregas consecutivas, que probablemente ocurren por la complejidad o poca practicidad del sistema, lo que lleva a los transportistas a omitir pasos. Si migrar a un sistema más moderno resulta demasiado costoso, una opción sería invertir en el desarrollo de un frontend más amigable, utilizando la API del sistema actual, para facilitar su uso y mejorar la experiencia de los transportistas.
+
 ## Información de bultos y peso.
 
-En promedio cada entrega tiene:
+En promedio, cada entrega contiene:
 
--   28.40 Unidades
+-   **28.40 unidades**
 
--   5.75 Bultos
+-   **5.75 bultos**
 
--   Un peso de 41.15kg
+-   **41.15 kg de peso**
 
--   Un peso promedio elevado por pedido puede indicar productos de gran volumen o de alto consumo. Esto tiene implicaciones en los costos de transporte y las rutas de entrega.
+El **peso elevado por pedido** sugiere la presencia de productos voluminosos o de alto consumo, lo que puede aumentar los **costos de transporte** debido a la mayor carga. Esto también tiene implicaciones importantes para la **planificación de rutas**, ya que es necesario optimizar el uso de los vehículos para evitar sobrecargas y cumplir con los límites de capacidad. Además, la gestión eficiente de estos pedidos requiere ajustar los tiempos de entrega, garantizar la disponibilidad de unidades adecuadas y considerar posibles restricciones en ciertas rutas debido al peso total transportado.
 
 ::: panel-tabset
 ## 🔢 Unidades
@@ -710,6 +708,9 @@ library(raster)
 
 ```
 
+::: panel-tabset
+## Todas las entregas
+
 ```{r,warning=FALSE,echo=FALSE}
 data$cliente <- as.factor(data$cliente)
 # Graficar las entregas por cliente con colores distintos
@@ -734,6 +735,68 @@ plot_ly(
     margin = list(r = 0, t = 0, b = 0, l = 0)
   )
 ```
+
+## Entregas por dia de la semana
+
+```{r,warning=FALSE,echo=FALSE}
+# Crear un factor ordenado para los días de la semana
+data$dia_str <- factor(data$dia_str, 
+                           levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"))
+
+# Crear una lista de días únicos (ahora ya estarán ordenados según el factor)
+dias_unicos <- unique(data$dia_str)
+
+# Crear una lista de "frames" para cada día
+frames <- lapply(dias_unicos, function(dia) {
+  list(
+    name = dia,
+    data = list(
+      list(
+        type = "scattermapbox",
+        lat = data$latitud[data$dia_str == dia],
+        lon = data$longitud[data$dia_str == dia],
+        mode = "markers",
+        marker = list(size = 7, opacity = 0.5),
+        text = paste("Cliente:", data$cliente[data$dia_str == dia], "<br>Dirección:", data$direccion[data$dia_str == dia]),
+        color = data$cliente[data$dia_str == dia]
+      )
+    )
+  )
+})
+
+# Graficar las entregas por cliente con un slider para cambiar día a día
+plot_ly(
+  data,
+  lat = ~latitud,
+  lon = ~longitud,
+  type = 'scattermapbox',
+  mode = 'markers',
+  color = ~cliente,  # Asigna un color distinto por cliente
+  frame = ~dia_str,  # Agregar el día como frame para la animación (ahora en orden)
+  marker = list(size = 7, opacity = 0.6),  # Ajusta el tamaño y la transparencia de los marcadores
+  text = ~paste("Cliente:", cliente, "<br>Dirección:", direccion)  # Información al pasar el mouse
+) %>%
+  layout(
+    mapbox = list(
+      accesstoken = mapbox_token,
+      center = list(lat = -34.6037, lon = -58.3816),  # Coordenadas de Buenos Aires
+      zoom = 10,  # Nivel de zoom
+      style = "open-street-map"  # Estilo del mapa
+    ),
+    title = "Mapa de Entregas en Buenos Aires por Cliente",
+    margin = list(r = 5, t = 25, b = 5, l = 5)
+  ) %>%
+  animation_opts(
+    frame = 500,  # Duración de cada frame en milisegundos
+    transition = 0,  # Sin transiciones entre frames
+    redraw = TRUE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Día: ")
+  )
+
+```
+:::
 
 Como podemos ver este mapa de entregas de la ciudad de Buenos Aires muestra visualmente la dispersión de las entregas en la ciudad. La variedad de colores permite ver qué clientes se agrupan en ciertas áreas. Si ciertos clientes concentran entregas en una región específica, eso puede indicar una demanda localizada o preferencia regional de ciertos productos.
 
@@ -907,7 +970,7 @@ heatmap_plot
 ```
 :::
 
-### PENDIENTE Centro de distribución en Mendoza.
+### Centro de distribución en Mendoza.
 
 ::: panel-tabset
 ## 📍 Mapa
@@ -1017,9 +1080,7 @@ Este mapa permite la visualización de un mapa interactivo que muestra las entre
 
 # Segmentación y patrones en entregas.
 
-## PENDIENTE Volumen y Distribución de Entregas
-
-> Cantidad de entregas correspondientes a cada cliente
+El gráfico de barras muestra cuántas entregas ha recibido cada cliente. Cada barra representa a un cliente, y su altura indica el total de entregas realizadas. Así, es fácil comparar rápidamente qué clientes tienen más o menos entregas.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Crear barchart con la cantidad total de entregas por cliente
@@ -1052,9 +1113,9 @@ barchart_cliente <- data %>%
 print(barchart_cliente)
 ```
 
-Este gráfico de barras permite la visualización de la cantidad total de entregas realizadas por cada cliente, utilizando barras que muestran el número de entregas para cada uno
+Este gráfico de líneas muestra la cantidad de entregas realizadas a dos clientes específicos (identificados como "20" y "70") a lo largo de los días de la semana. Cada línea representa a un cliente, permitiendo analizar cómo varían sus entregas día a día.
 
-> Identificar entregas recurrentes a domicilios,
+Podemos observar que el cliente 20 tiene un pico de entregas el miércoles y una disminución notable el jueves, con una ligera recuperación hacia el final de la semana. Por otro lado, el cliente 70 mantiene un comportamiento más estable a lo largo de los días, con pequeñas variaciones pero sin grandes picos o caídas. Esta visualización facilita comparar los patrones de entrega entre ambos clientes y puede ayudar a identificar días de mayor o menor actividad para cada uno.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Agrupar y contar la cantidad de entregas por cliente y día de la semana
@@ -1082,9 +1143,6 @@ print(linechart_cliente_dia)
 ```
 
 Este gráfico de lineas permite la visualización de la cantidad de entregas realizadas por cliente a lo largo de los días de la semana, excluyendo el domingo. Utiliza líneas para representar la evolución del número de entregas para cada cliente, con puntos destacados en cada día.
-
-
-
 
 Total de ordenes con más de una entrega: 5027
 
@@ -1131,7 +1189,9 @@ ggplot(frecuencias, aes(x = has_many, y = n)) +
 Este gráfico de barra permite la visualización de la cantidad de domicilios que han recibido más de una entrega. Utiliza barras para representar el número total de domicilios, distinguiendo entre aquellos que tienen mas de una entrega y los que no.
 :::
 
-> Zonas de entregas
+Este histograma muestra la distribución de la cantidad de entregas por domicilio, permitiendo identificar cuántas veces se realizaron múltiples entregas en un mismo lugar durante un periodo de tres meses. En el gráfico, cada barra representa la frecuencia de domicilios que recibieron cierta cantidad de entregas.
+
+Podemos observar que la mayoría de los domicilios recibieron dos entregas, lo que se refleja en la mayor altura de esa barra. Sin embargo, también se registran casos con más entregas, aunque en menor frecuencia, disminuyendo progresivamente a medida que aumenta el número de entregas por domicilio. En algunos casos excepcionales, se registraron más de X entregas en el mismo domicilio, lo que sugiere que ciertos clientes tienen una mayor recurrencia en los pedidos. Este análisis permite identificar tanto los patrones de entrega más comunes como los casos atípicos con entregas inusualmente altas.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Filtrar los datos de Buenos Aires
@@ -1172,13 +1232,22 @@ buenos_aires_data <- buenos_aires_data %>%
 
 ```
 
+El análisis mostrado utiliza el algoritmo de **K-means** para agrupar las entregas por su **localidad y cercanía geográfica** en la ciudad de Buenos Aires. El propósito de aplicar este tipo de clustering es identificar zonas de entrega de manera más eficiente y precisa, evitando segmentaciones arbitrarias como barrios o comunas, que podrían no reflejar de manera realista los patrones de distribución.
+
 ::: panel-tabset
-## Resultado
+## Resultado K Medias
 
 ```{r, warning=FALSE, echo=FALSE}
-# Visualizar los clusters en un mapa interactivo con leaflet
-palette <- colorFactor(palette = "Set1", domain = buenos_aires_data$cluster)
+# Definir la paleta de colores personalizada para los clusters (misma del mapa)
+cluster_colors <- c("1" = "#D32F2F",  # Rojo
+                    "2" = "#1976D2",  # Azul
+                    "3" = "#388E3C",  # Verde
+                    "4" = "#7B1FA2")  # Púrpura
 
+# Crear una paleta de colores para leaflet
+palette <- colorFactor(palette = cluster_colors, domain = buenos_aires_data$cluster)
+
+# Visualizar los clusters en un mapa interactivo con leaflet
 leaflet(data = buenos_aires_data) %>%
   addTiles() %>%
   addCircleMarkers(~longitud, ~latitud, 
@@ -1186,8 +1255,11 @@ leaflet(data = buenos_aires_data) %>%
                    radius = 2, fillOpacity = 0.8, 
                    popup = ~paste("Cluster:", cluster)) %>%
   addLegend("bottomright", pal = palette, values = ~cluster,
-            title = "Clusters", opacity = 0.2)
+            title = "Clusters", opacity = 0.8)
+
+
 ```
+
 Este gráfico nos ayuda a comprender el número de clusters utilizados en el análisis de K-means como la distribución geográfica de los mismos en el área de Buenos Aires.
 
 ## Elbow
@@ -1195,9 +1267,25 @@ Este gráfico nos ayuda a comprender el número de clusters utilizados en el an�
 ```{r, warning=FALSE, echo=FALSE}
 print(elbow_plot)
 ```
-El "gráfico del codo" representa el punto donde añadir más clusters no produce una disminución significativa en el WSS, sugiriendo que los clusters ya están suficientemente bien definidos.
 
+Para determinar la cantidad óptima de clusters (**K**) que mejor agrupe los puntos de entrega, se aplicó el **método del codo**. Este método mide la **suma de cuadrados dentro del cluster (WSS)**, que indica cuán compactos son los grupos formados. El gráfico muestra que a medida que aumenta el número de clusters, el WSS disminuye, lo que significa que los grupos son cada vez más específicos. Sin embargo, a partir de **K = 4**, la reducción adicional en WSS es menor, formando un "codo". Por eso, seleccionamos **4 clusters** como el número óptimo para este análisis.
 :::
+
+### Interpretación del Mapa y los Clusters
+
+En el mapa, los puntos de entrega están agrupados en **cuatro clusters**, cada uno representado por un color diferente. Esta división refleja de manera efectiva las zonas donde se concentran las entregas:
+
+-   **Zona Norte:** Agrupa entregas hacia localidades como Vicente López y San Isidro.
+
+-   **Zona Sur:** Incluye áreas como Lanús, Avellaneda y alrededores.
+
+-   **Zona Oeste:** Abarca lugares como Morón y La Matanza.
+
+-   **Zona Este:** Se concentra cerca de la Ciudad Autónoma de Buenos Aires, incluyendo zonas cercanas al Río de la Plata.
+
+Estos clusters permiten visualizar de forma más clara las áreas donde se realizan las entregas, facilitando la identificación de patrones geográficos importantes, como zonas con alta demanda. Esta información es útil para optimizar rutas de distribución, gestionar inventarios de forma localizada y mejorar la eficiencia operativa. Además, es posible notar que los grupos coinciden con divisiones lógicas de la ciudad (norte, sur, este y oeste), lo que respalda la validez de los clusters formados.
+
+Este enfoque basado en K-means nos permite tomar decisiones basadas en datos y adaptadas a la geografía real de las entregas, en lugar de depender de límites administrativos que podrían no reflejar los verdaderos patrones de distribución.
 
 ::: panel-tabset
 ## Entregas por zona
@@ -1206,13 +1294,20 @@ El "gráfico del codo" representa el punto donde añadir más clusters no produc
 # Calcular el número de entregas por cluster y ordenarlos de mayor a menor
 cluster_counts <- buenos_aires_data %>%
   group_by(cluster) %>%
-  summarise(count = n(),  .groups = "drop") %>%
+  summarise(count = n(), .groups = "drop") %>%
   arrange(desc(count))
+
+# Definir la paleta de colores personalizada para los clusters (misma del mapa)
+cluster_colors <- c("1" = "#D32F2F",  # Rojo
+                    "2" = "#1976D2",  # Azul
+                    "3" = "#388E3C",  # Verde
+                    "4" = "#7B1FA2")  # Púrpura
 
 # Graficar el bar chart de cantidad de entregas por cluster con etiquetas
 ggplot(cluster_counts, aes(x = reorder(cluster, -count), y = count, fill = cluster)) +
   geom_bar(stat = "identity") +
   geom_text(aes(label = count), vjust = -0.5, size = 5) +
+  scale_fill_manual(values = cluster_colors) +  # Aplicar paleta de colores personalizada
   labs(title = "Cantidad de entregas por cluster",
        x = "Cluster",
        y = "Cantidad de entregas") +
@@ -1272,53 +1367,70 @@ Este mapa permite la visualización de las áreas cubiertas por cada cluster en 
 :::
 
 ```{r, warning=FALSE, echo=FALSE}
-# Calcular el número de entregas por dia_str y por cluster
-deliveries_per_day_cluster <- buenos_aires_data %>%
-  group_by(cluster, dia_str) %>%
-  summarise(count = n()) %>%
-  ungroup()
 
-# Graficar el bar chart de cantidad de entregas por dia_str y por cluster
+# Filtrar los días válidos (excluir "NA")
+deliveries_per_day_cluster <- buenos_aires_data %>%
+  filter(dia_str != "NA") %>%  # Excluir valores "NA"
+  group_by(cluster, dia_str) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Definir la paleta de colores personalizada para los clusters
+cluster_colors <- c("1" = "#D32F2F",  # Rojo
+                    "2" = "#1976D2",  # Azul
+                    "3" = "#388E3C",  # Verde
+                    "4" = "#7B1FA2")  # Púrpura
+
+# Graficar el bar chart con colores personalizados
 ggplot(deliveries_per_day_cluster, aes(x = dia_str, y = count, fill = cluster)) +
   geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = cluster_colors) +  # Aplicar paleta personalizada
   labs(title = "Cantidad de entregas por día y por cluster",
        x = "Día",
        y = "Cantidad de entregas",
        fill = "Cluster") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
 ```
 
-Este grafico de barras muestra la cantidad de entregas por dia de la semana y por cluster. El gráfico permite comparar fácilmente la cantidad de entregas realizadas en cada día, desglosadas por los diferentes clusters identificados en Buenos Aires.
+Este gráfico de barras muestra la **cantidad de entregas realizadas por día de la semana**, segmentadas por **clusters geográficos**. Cada barra representa el número de entregas realizadas en un día específico, y los diferentes colores identifican los clusters. Las barras están agrupadas en modo **"dodge"**, lo que facilita comparar las entregas entre clusters para cada día.
+
+#### **Patrones Observados:**
+
+-   Los días con **mayor cantidad de entregas** son **martes y miércoles**, especialmente en el **cluster 3** (color verde).
+
+-   El **cluster 2** (azul) tiene un comportamiento más uniforme a lo largo de la semana, sin días con picos destacados.
+
+-   Los **clusters 1** (rojo) y **4** (púrpura) muestran menor volumen de entregas en comparación, pero con actividad significativa los lunes y viernes.
+
+-   Los días sábado también presentan un nivel de entregas importante, pero más distribuido entre los clusters.
+
+Este gráfico ayuda a visualizar cómo se distribuyen las entregas durante la semana en las distintas zonas geográficas, permitiendo identificar **picos de actividad por día y cluster**, lo cual puede ser útil para planificar recursos logísticos y optimizar rutas de entrega.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Calcular el número de entregas por cluster y por cliente
 deliveries_per_cluster_cliente <- buenos_aires_data %>%
   group_by(cluster, cliente) %>%
-  summarise(count = n()) %>%
-  ungroup()
+  summarise(count = n(), .groups = "drop")
+
+# Definir la paleta de colores personalizada para los clientes
+cliente_colors <- c("20" = "#F8766D",  # Rojo claro
+                    "70" = "#00BFC4")  # Azul claro
 
 # Graficar el bar chart de cantidad de entregas por cluster y por cliente
 ggplot(deliveries_per_cluster_cliente, aes(x = cluster, y = count, fill = factor(cliente))) +
   geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = cliente_colors) +  # Aplicar la paleta personalizada
   labs(title = "Cantidad de entregas por cluster y por cliente",
        x = "Cluster",
        y = "Cantidad de entregas",
        fill = "Cliente") +
   theme_minimal()
+
 ```
 
-Este gráfico de barras permite visualizar la cantidad de entregas por cluster, mostrando en el eje X los diferentes clusters y en el eje Y el número total de entregas, con cada barra coloreada según el cliente para facilitar la comparación de la distribución de entregas en Buenos Aires.
+Este gráfico de barras muestra la cantidad de entregas por **cluster geográfico** para los dos clientes, **20** y **70**. Las barras están agrupadas para facilitar la comparación entre los clientes en cada cluster.
 
-## PENDIENTE Eficiencia y Rendimiento Operativo
-
-> ¿Cuál es el tiempo promedio de entrega por cliente y por localidad?
->
-> ¿Qué zonas presentan mayores retrasos o entregas fuera de tiempo?
->
-> Identifica áreas con posibles cuellos de botella logísticos.
->
-> ¿Se detectan diferencias significativas en los tiempos de entrega según la cantidad de bultos o peso?
+Se observa que el **cliente 70** no tiene entregas registradas en el **Cluster 1**, mientras que el cliente **20** presenta entregas en todos los clusters. El **Cluster 2** es donde se concentra el mayor número de entregas para ambos clientes, destacando un volumen particularmente alto para el cliente 20.
 
 # Análisis de series temporales
 
@@ -1357,7 +1469,7 @@ fig
 Tenemos 4 grandes caidas en las entregas por lo que buscamos identificar el motivo en cada fecha.
 
 | Fecha                   | Cantidad de entregas | Motivo                                                                                                                                                                           |
-|------------------|------------------|-------------------------------------|
+|------------------|------------------|------------------------------------|
 | Jueves 9 de mayo        | 0                    | FNTC (Camioneros) adhiere al [paro general del 9 de mayo\*](https://tn.com.ar/sociedad/2024/05/08/quienes-adhieren-al-paro-general-del-9-de-mayo-y-que-servicios-no-funcionan/). |
 | Jueves 20 de junio      | 138                  | [Feriado nacional\*](https://www.argentina.gob.ar/interior/feriados-nacionales-2024) Paso a la Inmortalidad del Gral. Manuel Belgrano                                            |
 | **Domingo** 21 de julio | 3                    | Como [explicamos anteriormente](#horarios-entrega "¿Cuales son los horarios de entrega?") , según nuestros datos iflow no realizan entregas los domingos.                        |
@@ -1389,8 +1501,8 @@ fig <- plot_ly(data_resumida_clean, x = ~fecha, y = ~n, type = 'scatter', mode =
 # Mostrar el gráfico
 fig
 ```
-Con los datos ordenados ahora podemos descomponer la serie temporal en tendencia, estacionalidad y residuales.
 
+Con los datos ordenados ahora podemos descomponer la serie temporal en tendencia, estacionalidad y residuales.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Convertir los datos a serie temporal (suponiendo frecuencia diaria)
@@ -1402,6 +1514,18 @@ descomposicion <- stl(ts_data, s.window = "periodic")
 # Gráfico de la descomposición
 plot(descomposicion)
 ```
+
+Con esta **descomposición de la serie temporal**, podemos analizar los siguientes aspectos clave:
+
+1.  **Serie original (Data):** Nos muestra los valores reales a lo largo del tiempo, permitiendo visualizar los cambios y fluctuaciones en los datos.
+
+2.  **Componente estacional (Seasonal):** Identifica los patrones repetitivos que ocurren en intervalos regulares, como ciclos mensuales o semanales. Este componente es útil para detectar estacionalidad, lo que puede ayudar a prever comportamientos futuros basados en estos ciclos.
+
+3.  **Tendencia (Trend):** Nos indica si los datos siguen una dirección general creciente, decreciente o estable a lo largo del tiempo. La tendencia es esencial para evaluar el comportamiento a largo plazo y detectar cambios estructurales.
+
+4.  **Residuo (Remainder):** Muestra las variaciones o anomalías que no se explican por la estacionalidad ni la tendencia. Este componente permite identificar eventos atípicos o ruido aleatorio que afecta los datos.
+
+Esta descomposición permite entender los **patrones subyacentes** de la serie temporal, facilitando un análisis más preciso. Podemos, por ejemplo, diferenciar entre fluctuaciones temporales (estacionales) y cambios estructurales (tendencias), y evaluar la magnitud del **ruido o error** para mejorar modelos de predicción.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Filtrar los datos para entrenamiento y validación
@@ -1458,35 +1582,26 @@ if (length(test_ts) == length(pred_101$mean)) {
 
 En los datos proporcionados no contamos con la información necesaria para realizar un análisis específico de las unidades de transporte, ya que sería indispensable disponer de un identificador único para cada vehículo. Sin embargo, incluimos esta sección como prueba de concepto para demostrar el valor que podría generar este tipo de análisis en la operación logística. Disponer de esta información permitiría evaluar aspectos fundamentales de la gestión de la flota, optimización de rutas y eficiencia operativa.
 
-A continuación, presentamos algunas preguntas clave que podrían responderse con un análisis detallado de las unidades de transporte:
+Enumeramos algunos análisis posibles con la información de los camiones, unidades de transporte.
 
-## **Preguntas sobre Desempeño y Utilización de la Flota**
+1.  **Optimización de Rutas:** Identificar las rutas más eficientes y reducir viajes innecesarios para minimizar costos y tiempo de entrega.
 
-1.  **¿Cuánto tiempo real dedica cada unidad a entregas versus tiempo muerto (espera, carga, mantenimiento)?**
+```{=html}
+<!-- -->
+```
+1.  **Utilización de la Flota:** Evaluar el uso real de cada vehículo para detectar capacidad ociosa y ajustar la cantidad de unidades necesarias.
 
-2.  **¿Cuáles son los tiempos de ruta promedio por camión y cómo varían según la región?**
+2.  **Desempeño Operativo:** Medir tiempos activos (entregas) versus tiempos inactivos (espera o mantenimiento) para mejorar la eficiencia y planificación.
 
-3.  **¿Es necesaria la cantidad actual de camiones, o existe capacidad ociosa que podría aprovecharse?**
+Algunos analisis que realizamos como prueba de concepto..
 
-4.  **¿Hay rutas o zonas específicas donde sería más eficiente reducir o ampliar la flota?**
+Primero identificamos la ubicacion de las sedes de Iflow y las comparamos con la primera entrega de cada día para entender si existe algún patron con respecto al orden de las entregas.
 
-5.  **¿Qué porcentaje de las unidades completan sus rutas dentro de los tiempos planificados?**
-
-#### **Preguntas sobre Optimización de Rutas y Rendimiento**
-
-6.  **¿Se podrían consolidar entregas para reducir la cantidad de viajes sin afectar el servicio?**
-
-7.  **¿Existen unidades con rutas ineficientes que podrían optimizarse con ajustes?**
-
-8.  **¿Cuál es la relación entre la distancia recorrida y el volumen entregado por unidad?**
-
-9.  **¿Se podrían reducir tiempos muertos al mejorar la planificación de entregas o las ventanas horarias?**
-
-Si bien no contamos con la información completa sobre las unidades de transporte, hemos realizado estimaciones basadas en los datos disponibles y presentamos nuestro análisis como aproximación para obtener insights relevantes.
-
-> Sedes de Iflow que conocemos
+::: panel-tabset
+## Sedes vs Primeras entregas
 
 ```{r, warning=FALSE, echo=FALSE}
+
 # Definir las coordenadas en la variable 'sedes'
 sedes <- data.frame(
   lat = c(-34.4574168, -34.4312098, -34.4616837, -34.4616837),
@@ -1494,34 +1609,6 @@ sedes <- data.frame(
   zoom = c(14, NA, NA, 17) # Columna opcional para definir niveles de zoom
 )
 
-# Crear el mapa interactivo usando Plotly y Mapbox
-fig <- plot_ly(
-  data = sedes,
-  type = 'scattermapbox', # Define el tipo de gráfico
-  lat = ~lat,
-  lon = ~lon,
-  mode = 'markers', # Establece los puntos como marcadores
-  marker = list(size = 10, color = 'red') # Opcional: personalización de marcadores
-)
-
-# Añadir el estilo de Mapbox
-fig <- fig %>%
-  layout(
-    mapbox = list(
-      style = 'open-street-map', # Puedes usar otros estilos como 'streets', 'satellite'
-      zoom = 10, # Nivel de zoom inicial
-      center = list(lat = mean(sedes$lat), lon = mean(sedes$lon)) # Centrar el mapa
-    )
-  )
-
-# Mostrar el gráfico
-fig
-
-```
-
-> Primera entrega de cada día
-
-```{r, warning=FALSE, echo=FALSE}
 # Suponiendo que 'data' tiene las columnas necesarias: 'fin_visita', 'latitud', 'longitud', 'cliente'
 primeras_entregas <- data %>%
   mutate(fecha = as.Date(fin_visita)) %>%
@@ -1564,7 +1651,37 @@ mapa_leaflet <- leaflet() %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
-Primera entrega de cada día las cuales se ubican en su mayoría a una gran distancia de las sedes de iFlow analizadas anteriormente.
+
+## Sedes de Iflow
+
+```{r, warning=FALSE, echo=FALSE}
+
+# Crear el mapa interactivo usando Plotly y Mapbox
+fig <- plot_ly(
+  data = sedes,
+  type = 'scattermapbox', # Define el tipo de gráfico
+  lat = ~lat,
+  lon = ~lon,
+  mode = 'markers', # Establece los puntos como marcadores
+  marker = list(size = 10, color = 'red') # Opcional: personalización de marcadores
+)
+
+# Añadir el estilo de Mapbox
+fig <- fig %>%
+  layout(
+    mapbox = list(
+      style = 'open-street-map', # Puedes usar otros estilos como 'streets', 'satellite'
+      zoom = 10, # Nivel de zoom inicial
+      center = list(lat = mean(sedes$lat), lon = mean(sedes$lon)) # Centrar el mapa
+    )
+  )
+
+# Mostrar el gráfico
+fig
+```
+:::
+
+Luego graficamos la primera y segunda entrega de cada día. Esperaríamos que estos valores se encuentren en pares, muy cercanos entre si.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Encontrar la primera y la segunda entrega de cada día
@@ -1605,15 +1722,16 @@ mapa_leaflet <- leaflet(data = entregas_dia) %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
-En este gráfico en el cual visualizamos los puntos de la primer y segunda entrega del día, encontramos cercanías entre los puntos azules (1er entrega del día) respecto a los puntos rojos (2da entrega del día) lo cual nos hace suponer que realizan las entregas de acuerdo a la cercanía con una ubicación específica.
 
-> Grafico de orden de las entregas de un día en específico.
+En este gráfico en el cual visualizamos los puntos de la primer y segunda entrega del día, encontramos cercanías entre los puntos azules (1er entrega del día) respecto a los puntos rojos (2da entrega del día) lo cual nos hace suponer que realizan las entregas de acuerdo a la cercanía con una ubicación específica.
 
 ```{r, warning=FALSE, echo=FALSE}
 # Parámetros: Selección de fecha específica y cantidad de entregas 
 fecha_seleccionada <- as.Date("2024-05-23")  
 n_entregas <- 20
 ```
+
+Luego, tomando como referencia la fecha 2024-05-23, graficamos las primeras 20 entregas de ese día y las conectamos en orden cronológico.
 
 ::: panel-tabset
 ## Ocultar tiempo entre entregas
@@ -1695,7 +1813,6 @@ mapa_leaflet <- leaflet(data = entregas_fecha) %>%
 # Mostrar el mapa
 mapa_leaflet
 ```
-Este mapa interactivo proporciona una visualización clara y efectiva de las entregas en un día específico, permitiendo a los usuarios entender rápidamente la distribución geográfica de las entregas, el tiempo entre ellas y la relación con los clientes.
 
 ## Mostrar tiempo entre entregas
 
@@ -1793,19 +1910,13 @@ mapa_leaflet
 ```
 :::
 
-> Conclusiones:
->
-> -   Parece que los camiones no mezclan productos del cliente 20 y 70.
->
-> -   Tiempos muertos, identificar trayectorias por distancia.
->
-> -   Errores de carga cuando hay localidades consecutivas.
->
-> Grafico de trayectoria en orden para cada cliente. Identificar puntos que demuestran rutas poco eficientes. Cruces de lineas, tiempo perdido.
->
-> Graficar tiempo entre entregas por hora del día. (Tiempo muerto)
->
-> Ampliar u organizar nuevos centros de distribución. (En base a los datos de estos dos clientes), Segmentación de entregas (global y por cliente) para identificar puntos donde sería ideal. (Centro de zona, cruce de zonas, cluster con más o menor actividad)
+Esto nos permite identificar algunos patrones.
+
+Los camiones no llevan productos de distintos clientes, lleva o productos del cliente 20 o del 70.
+
+Existen distintos camiones que podrian ser identificados gracias a las grandes distancias entre entregas con muy poco tiempo de diferencia.
+
+En donde se realizan cruces de lineas podemos identificar rutas mal optimizadas.
 
 ## Intentos de identificar transportistas.
 
@@ -2013,14 +2124,6 @@ Esta estimación nos presenta algunas preguntas sobre factores de las entregas.
 
     Gracias al análisis podemos ver que las rutas estan optimizadas pero parecen estar diseñadas para transportistas individuales y no para la flota como grupo. Optimizar las rutas de entregas para toda la flota como un ente es distinto a diseñar la ruta para cada camion entre dos puntos.
 
-# Conclusiones
-
 # Apéndice
 
-<https://www.youtube.com/watch?v=V8eXoIFcMgM>
-
-Incluir enlace interno para versión del trabajo con el codigo y comentarios.
-
-Incluir el enlace al repositorio de Github
-
-Referencias de estudio sobre Lastmile logistics, ETL in logistics y clustering geoespacial DBSCAN, H3 oreilly
+Enlace al repositorio de github <https://github.com/LorennMarque/iflow>
